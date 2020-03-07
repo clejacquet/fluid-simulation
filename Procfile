@@ -1,1 +1,1 @@
-web: node webgl/
+web: node webgl/start.js
