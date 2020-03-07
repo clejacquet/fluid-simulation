@@ -1,0 +1,27 @@
+{
+  "name": "fluid-simulation",
+  "version": "1.0.0",
+  "description": "",
+  "main": "start.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/clejacquet/fluid-simulation.git"
+  },
+  "keywords": [
+    "fluid-simulation",
+    "graphics",
+    "opengl"
+  ],
+  "author": "clejacquet",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/clejacquet/fluid-simulation/issues"
+  },
+  "homepage": "https://github.com/clejacquet/fluid-simulation#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
