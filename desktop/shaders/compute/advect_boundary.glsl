@@ -3,7 +3,7 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(binding = 1, rg32f) uniform image2D velocity;
+layout(binding = 1, rg32f) uniform restrict image2D velocity;
 
 layout(location = 1) uniform sampler2D velocity_sampler;
 

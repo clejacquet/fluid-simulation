@@ -4,7 +4,7 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 
 
-layout(binding = 2, r32f) uniform image2D pressure;
+layout(binding = 2, r32f) uniform restrict image2D pressure;
 
 layout(location = 2) uniform sampler2D pressure_sampler;
 

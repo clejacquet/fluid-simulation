@@ -191,9 +191,6 @@ int main() {
     Texture divergence(SCREEN_WIDTH, SCREEN_HEIGHT, GL_R32F);
 
 
-    std::cout << color.src().getID() << std::endl;
-
-
     bool active = true;
 
     glm::ivec2 click_pos;

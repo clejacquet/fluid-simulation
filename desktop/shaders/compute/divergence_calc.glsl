@@ -3,7 +3,7 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(binding = 3, r32f) uniform image2D divergence;
+layout(binding = 3, r32f) uniform restrict image2D divergence;
 
 layout(location = 0) uniform sampler2D color_sampler;
 layout(location = 1) uniform sampler2D velocity_sampler;
