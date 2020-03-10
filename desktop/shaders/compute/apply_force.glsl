@@ -25,12 +25,13 @@ void applyForce(ivec2 coords, ivec2 size) {
     vec2 rel_coords = (vec2(coords) + vec2(0.5f)) / vec2(size);
     vec2 d = vec2(1.0f) / (vec2(size) - vec2(1.0f));
 
+    vec2 v_xy = vec2(0.0f);
     if (coords.x > 0 && coords.x < size.x - 1 && coords.y > 0 && coords.y < size.x - 1) {
-        vec2 v_xy = 500.0f * vec2(0.0f, -1.0f) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 1000.0f);
-        vec2 new_velocity = v_xy + texture(velocity_sampler, rel_coords).xy;
-
-        imageStore(velocity, coords, vec4(new_velocity, 0.0f, 0.0f));
+        v_xy = 500.0f * vec2(0.0f, -1.0f) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 1000.0f);
     }
+
+    vec2 new_velocity = v_xy + texture(velocity_sampler, rel_coords).xy;
+    imageStore(velocity, coords, vec4(new_velocity, 0.0f, 0.0f));
 }
 
 void main() {
@@ -39,7 +40,7 @@ void main() {
     }
 
     ivec2 coords = ivec2(gl_GlobalInvocationID);
-    ivec2 size = imageSize(color);
+    ivec2 size = imageSize(velocity);
 
     applyForce(coords, size);
 }

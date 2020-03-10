@@ -16,6 +16,43 @@
 #define SIM_WIDTH 1280
 #define SIM_HEIGHT 720
 
+class SwapTexture {
+private:
+    Texture _texture1;
+    Texture _texture2;
+    Texture* _src;
+    Texture* _dst;
+
+public:
+    SwapTexture(int width, int height, GLenum inner_format, GLenum format, GLenum type, unsigned char* data) :
+        _texture1(width, height, inner_format, format, type, data),
+        _texture2(width, height, inner_format, format, type, data),
+        _src(&_texture1),
+        _dst(&_texture2)
+    {
+    }
+
+    SwapTexture(int width, int height, GLenum format) :
+        _texture1(width, height, format),
+        _texture2(width, height, format),
+        _src(&_texture1),
+        _dst(&_texture2)
+    {
+    }
+
+    const Texture& src() const {
+        return *_src;
+    }
+
+    const Texture& dst() const {
+        return *_dst;
+    }
+
+    void swap() {
+        std::swap(_src, _dst);
+    }
+};
+
 
 std::unique_ptr<unsigned char[]> generateTextureData(int width, int height) {
     auto data = std::make_unique<float[]>(width * height);
@@ -51,38 +88,38 @@ std::unique_ptr<unsigned char[]> generateVelocityData(int width, int height) {
     return std::unique_ptr<unsigned char[]>((unsigned char*) data.release());
 }
 
-void useComputeShader(ComputeShader& shader, unsigned color_id, unsigned velocity_id, unsigned pressure_id, unsigned divergence_id) {
+void useComputeShader(ComputeShader& shader, const SwapTexture& color, const SwapTexture& velocity, const SwapTexture& pressure, unsigned divergence_id) {
     shader.use();
     shader.setFloat("timestep", 0.033f);
     shader.setFloat("dx", 1.0f);
     shader.setFloat("viscosity", 0.01f);
     shader.setBool("has_clicked", false);
 
-    glCheckError(glBindImageTexture(0, color_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
-    glCheckError(glBindImageTexture(1, velocity_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RG32F));
-    glCheckError(glBindImageTexture(2, pressure_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
+    glCheckError(glBindImageTexture(0, color.dst().getID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
+    glCheckError(glBindImageTexture(1, velocity.dst().getID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RG32F));
+    glCheckError(glBindImageTexture(2, pressure.dst().getID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
     glCheckError(glBindImageTexture(3, divergence_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
 
     glCheckError(glActiveTexture(GL_TEXTURE0));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, color_id));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, color.src().getID()));
     shader.setInt("color_sampler", 0);
     glCheckError(glActiveTexture(GL_TEXTURE1));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, velocity_id));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, velocity.src().getID()));
     shader.setInt("velocity_sampler", 1);
     glCheckError(glActiveTexture(GL_TEXTURE2));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, pressure_id));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, pressure.src().getID()));
     shader.setInt("pressure_sampler", 2);
     glCheckError(glActiveTexture(GL_TEXTURE3));
     glCheckError(glBindTexture(GL_TEXTURE_2D, divergence_id));
     shader.setInt("divergence_sampler", 3);
 
-    glCheckError(glDispatchCompute(SCREEN_WIDTH / 16, SCREEN_HEIGHT / 16, 1));
     glCheckError(glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT));
+    glCheckError(glDispatchCompute(SCREEN_WIDTH / 16, SCREEN_HEIGHT / 16, 1));
 
     glCheckError(glUseProgram(0));
 }
 
-void useComputeShader(ComputeShader& shader, unsigned color_id, unsigned velocity_id, unsigned pressure_id, unsigned divergence_id, const glm::ivec2 &clic) {
+void useComputeShader(ComputeShader& shader, const SwapTexture& color, const SwapTexture& velocity, const SwapTexture& pressure, unsigned divergence_id, const glm::ivec2 &clic) {
     shader.use();
     shader.setFloat("timestep", 0.033f);
     shader.setFloat("dx", 1.0f);
@@ -90,29 +127,31 @@ void useComputeShader(ComputeShader& shader, unsigned color_id, unsigned velocit
     shader.setBool("has_clicked", true);
     shader.setVec2i("click_pos", clic);
 
-    glCheckError(glBindImageTexture(0, color_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
-    glCheckError(glBindImageTexture(1, velocity_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RG32F));
-    glCheckError(glBindImageTexture(2, pressure_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
+    glCheckError(glBindImageTexture(0, color.dst().getID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
+    glCheckError(glBindImageTexture(1, velocity.dst().getID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RG32F));
+    glCheckError(glBindImageTexture(2, pressure.dst().getID(), 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
     glCheckError(glBindImageTexture(3, divergence_id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_R32F));
 
     glCheckError(glActiveTexture(GL_TEXTURE0));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, color_id));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, color.src().getID()));
     shader.setInt("color_sampler", 0);
     glCheckError(glActiveTexture(GL_TEXTURE1));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, velocity_id));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, velocity.src().getID()));
     shader.setInt("velocity_sampler", 1);
     glCheckError(glActiveTexture(GL_TEXTURE2));
-    glCheckError(glBindTexture(GL_TEXTURE_2D, pressure_id));
+    glCheckError(glBindTexture(GL_TEXTURE_2D, pressure.src().getID()));
     shader.setInt("pressure_sampler", 2);
     glCheckError(glActiveTexture(GL_TEXTURE3));
     glCheckError(glBindTexture(GL_TEXTURE_2D, divergence_id));
     shader.setInt("divergence_sampler", 3);
 
-    glCheckError(glDispatchCompute(SIM_WIDTH / 16, SIM_HEIGHT / 16, 1));
     glCheckError(glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT));
+    glCheckError(glDispatchCompute(SIM_WIDTH / 16, SIM_HEIGHT / 16, 1));
 
     glCheckError(glUseProgram(0));
 }
+
+
 
 int main() {
     sf::ContextSettings settings;
@@ -139,10 +178,21 @@ int main() {
     ComputeShader pressure_boundary_shader("shaders/compute/pressure_boundary.glsl");
     ComputeShader pressure_solve_shader("shaders/compute/pressure_solve.glsl");
 
-    Texture color(SCREEN_WIDTH, SCREEN_HEIGHT, GL_R32F, GL_RED, GL_FLOAT, std::move(generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT)));
-    Texture velocity(SCREEN_WIDTH, SCREEN_HEIGHT, GL_RG32F, GL_RG, GL_FLOAT, std::move(generateVelocityData(SCREEN_WIDTH, SCREEN_HEIGHT)));
-    Texture pressure(SCREEN_WIDTH, SCREEN_HEIGHT, GL_R32F);
+    auto color_data = generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT);
+    auto velocity_data = generateVelocityData(SCREEN_WIDTH, SCREEN_HEIGHT);
+
+
+    SwapTexture color(SCREEN_WIDTH, SCREEN_HEIGHT, GL_R32F, GL_RED, GL_FLOAT, color_data.get());
+
+    SwapTexture velocity(SCREEN_WIDTH, SCREEN_HEIGHT, GL_RG32F, GL_RG, GL_FLOAT, velocity_data.get());
+
+    SwapTexture pressure(SCREEN_WIDTH, SCREEN_HEIGHT, GL_R32F);
+
     Texture divergence(SCREEN_WIDTH, SCREEN_HEIGHT, GL_R32F);
+
+
+    std::cout << color.src().getID() << std::endl;
+
 
     bool active = true;
 
@@ -184,26 +234,40 @@ int main() {
         }
 
 
-        useComputeShader(advect_boundary_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
-        useComputeShader(advect_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
+        useComputeShader(advect_boundary_shader, color, velocity, pressure, divergence.getID());
+        velocity.swap();
+        
+        useComputeShader(advect_shader, color, velocity, pressure, divergence.getID());
+        color.swap();
+        velocity.swap();
+        pressure.swap();
 
         for (int i = 0; i < 30; ++i) {
-            useComputeShader(diffuse_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
+            useComputeShader(diffuse_shader, color, velocity, pressure, divergence.getID());
+            velocity.swap();
         }
 
         if (has_clicked) {
-            useComputeShader(apply_force_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID(), click_pos);
+            useComputeShader(apply_force_shader, color, velocity, pressure, divergence.getID(), click_pos);
+            velocity.swap();
         }
         
-        useComputeShader(divergence_calc_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
-        useComputeShader(pressure_boundary_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
+        useComputeShader(divergence_calc_shader, color, velocity, pressure, divergence.getID());
+        
+        useComputeShader(pressure_boundary_shader, color, velocity, pressure, divergence.getID());
+        pressure.swap();
 
         for (int i = 0; i < 70; ++i) {
-            useComputeShader(pressure_solve_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
+            useComputeShader(pressure_solve_shader, color, velocity, pressure, divergence.getID());
+            pressure.swap();
         }
 
-        useComputeShader(advect_boundary_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
-        useComputeShader(gradient_sub_shader, color.getID(), velocity.getID(), pressure.getID(), divergence.getID());
+        useComputeShader(advect_boundary_shader, color, velocity, pressure, divergence.getID());
+        velocity.swap();
+
+        useComputeShader(gradient_sub_shader, color, velocity, pressure, divergence.getID());
+        velocity.swap();
+
 
         glCheckError(glClear(GL_COLOR_BUFFER_BIT));
 
@@ -211,7 +275,7 @@ int main() {
         gshader.use();
 
         glCheckError(glActiveTexture(GL_TEXTURE0));
-        glCheckError(glBindTexture(GL_TEXTURE_2D, color.getID()));
+        glCheckError(glBindTexture(GL_TEXTURE_2D, color.src().getID()));
         gshader.setInt("tex", 0);
         
 

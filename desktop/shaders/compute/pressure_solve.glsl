@@ -3,13 +3,9 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(binding = 0, r32f) uniform image2D color;
-layout(binding = 1, rg32f) uniform image2D velocity;
-layout(binding = 2, r32f) uniform image2D pressure;
-layout(binding = 3, r32f) uniform image2D divergence;
 
-layout(location = 0) uniform sampler2D color_sampler;
-layout(location = 1) uniform sampler2D velocity_sampler;
+layout(binding = 2, r32f) uniform image2D pressure;
+
 layout(location = 2) uniform sampler2D pressure_sampler;
 layout(location = 3) uniform sampler2D divergence_sampler;
 
@@ -37,16 +33,16 @@ void pressure_solve(ivec2 coords, ivec2 size) {
         float b = texture(divergence_sampler, rel_coords).x;
 
         pressure_val = (pL + pR + pB + pT + alpha * b) * r_beta;
-        barrier();
-        imageStore(pressure, coords, vec4(pressure_val, 0.0f, 0.0f, 0.0f));
+    } else {
+        pressure_val = texture(pressure_sampler, rel_coords).x;
     }
 
-    memoryBarrier();
+    imageStore(pressure, coords, vec4(pressure_val, 0.0f, 0.0f, 0.0f));
 }
 
 void main() {
     ivec2 coords = ivec2(gl_GlobalInvocationID);
-    ivec2 size = imageSize(color);
+    ivec2 size = imageSize(pressure);
 
     pressure_solve(coords, size);
 }
