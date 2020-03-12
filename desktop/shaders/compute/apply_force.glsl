@@ -9,10 +9,10 @@ layout(location = 1) uniform sampler2D velocity_sampler;
 
 uniform float timestep;
 
-uniform float dx;
 uniform float viscosity;
 uniform bool has_clicked;
 uniform ivec2 click_pos;
+uniform vec2 force_dir;
 
 
 void applyForce(ivec2 coords, ivec2 size) {
@@ -21,7 +21,7 @@ void applyForce(ivec2 coords, ivec2 size) {
 
     vec2 v_xy = vec2(0.0f);
     if (coords.x > 0 && coords.x < size.x - 1 && coords.y > 0 && coords.y < size.x - 1) {
-        v_xy = 500.0f * vec2(0.0f, -1.0f) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 1000.0f);
+        v_xy = 1000.0f * timestep * force_dir * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 10.0f);
     }
 
     vec2 new_velocity = v_xy + texture(velocity_sampler, rel_coords).xy;

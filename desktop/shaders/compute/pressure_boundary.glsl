@@ -10,7 +10,6 @@ layout(location = 2) uniform sampler2D pressure_sampler;
 
 uniform float timestep;
 
-uniform float dx;
 uniform float viscosity;
 
 

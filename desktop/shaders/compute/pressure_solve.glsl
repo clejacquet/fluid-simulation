@@ -11,7 +11,7 @@ layout(location = 3) uniform sampler2D divergence_sampler;
 
 uniform float timestep;
 
-uniform float dx;
+uniform vec2 dx;
 uniform float viscosity;
 
 
@@ -19,7 +19,7 @@ void pressure_solve(ivec2 coords, ivec2 size) {
     vec2 rel_coords = (vec2(coords) + vec2(0.5f)) / vec2(size);
     vec2 d = vec2(1.0f) / (vec2(size) - vec2(1.0f));
 
-    float alpha = -dx * dx;
+    float alpha = -length(dx) * length(dx);
     float r_beta = 1.0f / 4.0f;
 
     float pressure_val;

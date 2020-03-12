@@ -9,7 +9,7 @@ layout(location = 1) uniform sampler2D velocity_sampler;
 
 uniform float timestep;
 
-uniform float dx;
+uniform vec2 dx;
 uniform float viscosity;
 
 #define ITER_DIFFUSE 30
@@ -18,7 +18,7 @@ void velocity_diffuse(ivec2 coords, ivec2 size) {
     vec2 rel_coords = (vec2(coords) + vec2(0.5f)) / vec2(size);
 
     vec2 d = vec2(1.0f) / (vec2(size) - vec2(1.0f));
-    float alpha = dx * dx / (viscosity * timestep);
+    float alpha = length(dx) * length(dx) / (viscosity * timestep);
     float r_beta = 1.0f / (4.0f + alpha);
 
     vec2 diffused_velocity;

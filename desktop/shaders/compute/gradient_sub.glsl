@@ -11,7 +11,7 @@ layout(location = 2) uniform sampler2D pressure_sampler;
 
 uniform float timestep;
 
-uniform float dx;
+uniform vec2 dx;
 uniform float viscosity;
 
 
@@ -19,7 +19,7 @@ void gradient_sub(ivec2 coords, ivec2 size) {
     vec2 rel_coords = (vec2(coords) + vec2(0.5f)) / vec2(size);
     vec2 d = vec2(1.0f) / (vec2(size) - vec2(1));
     
-    float halfrdx = 0.5f / dx;
+    float halfrdx = 0.5f / length(dx);
 
     vec2 current_velocity = texture(velocity_sampler, rel_coords).xy;
     vec2 new_velocity;

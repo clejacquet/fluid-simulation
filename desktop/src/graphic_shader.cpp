@@ -83,7 +83,7 @@ GraphicShader::~GraphicShader() {
 }
 
 
-void GraphicShader::use() { 
+void GraphicShader::use() const { 
     glCheckError(glUseProgram(_program_id));
 }
 
