@@ -450,7 +450,7 @@ function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
   
 
 function generateTextureData(width, height) {
-    const data = new Array(3 * width * height);
+    const data = new Array(4 * width * height);
 
     const max_distance = Math.sqrt(Math.pow(width * 0.5, 2) + Math.pow(height * 0.5, 2));
 
@@ -458,7 +458,7 @@ function generateTextureData(width, height) {
         for (let i = 0; i < width; ++i) {
             const distance = Math.sqrt(Math.pow(width * 0.5 - i, 2) + Math.pow(height * 0.5 - j, 2)) / max_distance;
 
-            data[(j * width + i) * 3 + 0] = Math.pow(1.0 - distance, 2.0);
+            data[(j * width + i) * 4 + 0] = Math.pow(1.0 - distance, 2.0);
         }
     }
 
@@ -466,14 +466,15 @@ function generateTextureData(width, height) {
 }
 
 function generateVelocityData(width, height) {
-    const data = new Array(3 * width * height);
+    const data = new Array(4 * width * height);
 
 
     for (let j = 0; j < height; ++j) {
         for (let i = 0; i < width; ++i) {
-            data[(j * width + i) * 3 + 0] = 0.0;
-            data[(j * width + i) * 3 + 1] = 0.0;
-            data[(j * width + i) * 3 + 2] = 0.0;
+            data[(j * width + i) * 4 + 0] = 0.0;
+            data[(j * width + i) * 4 + 1] = 0.0;
+            data[(j * width + i) * 4 + 2] = 0.0;
+            data[(j * width + i) * 4 + 3] = 0.0;
         }
     }
 
@@ -540,10 +541,19 @@ function main() {
     canvas.addEventListener("click", (e) => {
         const x = e.clientX - canvas.getBoundingClientRect().left;
         const y = SCREEN_HEIGHT - (e.clientY - canvas.getBoundingClientRect().top) - 1;
-
+        // alert(`${x}, ${y}`);
+        
         click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
         has_clicked = true;
     });
+    
+    // canvas.addEventListener("touch", (e) => {
+    //     const x = e.clientX - canvas.getBoundingClientRect().left;
+    //     const y = SCREEN_HEIGHT - (e.clientY - canvas.getBoundingClientRect().top) - 1;
+
+    //     click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
+    //     has_clicked = true;
+    // });
 
     // Initialisation du contexte WebGL
     const gl = canvas.getContext("webgl", { antialias: false });
@@ -571,13 +581,13 @@ function main() {
     const pressure_solve_shader = initShaderProgram(gl, vsRender, fsPressureSolve);
     const gradient_sub_shader = initShaderProgram(gl, vsRender, fsGradientSub);
 
-    const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT, generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
-    const color2 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT, generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
-    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT, generateVelocityData(SIM_WIDTH, SIM_HEIGHT));
-    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT, generateVelocityData(SIM_WIDTH, SIM_HEIGHT));
-    const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT);
-    const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT);
-    const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGB, gl.RGB, gl.FLOAT);
+    const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
+    const color2 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
+    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateVelocityData(SIM_WIDTH, SIM_HEIGHT));
+    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateVelocityData(SIM_WIDTH, SIM_HEIGHT));
+    const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT);
+    const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT);
+    const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT);
 
     const color1_fb = loadFramebuffer(gl, color1);
     const color2_fb = loadFramebuffer(gl, color2);
