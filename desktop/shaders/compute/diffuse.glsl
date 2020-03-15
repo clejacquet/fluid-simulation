@@ -3,19 +3,13 @@
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
-layout(binding = 0, r32f) uniform image2D color;
-layout(binding = 1, rg32f) uniform image2D velocity;
-layout(binding = 2, r32f) uniform image2D pressure;
-layout(binding = 3, r32f) uniform image2D divergence;
+layout(binding = 1, rg32f) uniform restrict image2D velocity;
 
-layout(location = 0) uniform sampler2D color_sampler;
 layout(location = 1) uniform sampler2D velocity_sampler;
-layout(location = 2) uniform sampler2D pressure_sampler;
-layout(location = 3) uniform sampler2D divergence_sampler;
 
 uniform float timestep;
 
-uniform float dx;
+uniform vec2 dx;
 uniform float viscosity;
 
 #define ITER_DIFFUSE 30
@@ -24,7 +18,7 @@ void velocity_diffuse(ivec2 coords, ivec2 size) {
     vec2 rel_coords = (vec2(coords) + vec2(0.5f)) / vec2(size);
 
     vec2 d = vec2(1.0f) / (vec2(size) - vec2(1.0f));
-    float alpha = dx * dx / (viscosity * timestep);
+    float alpha = length(dx) * length(dx) / (viscosity * timestep);
     float r_beta = 1.0f / (4.0f + alpha);
 
     vec2 diffused_velocity;
@@ -42,14 +36,12 @@ void velocity_diffuse(ivec2 coords, ivec2 size) {
         diffused_velocity = texture(velocity_sampler, rel_coords).xy;
     }
 
-    barrier();
     imageStore(velocity, coords, vec4(diffused_velocity, 0.0f, 0.0f));
-    memoryBarrier();
 }
 
 void main() {
     ivec2 coords = ivec2(gl_GlobalInvocationID);
-    ivec2 size = imageSize(color);
+    ivec2 size = imageSize(velocity);
 
     velocity_diffuse(coords, size);
 }

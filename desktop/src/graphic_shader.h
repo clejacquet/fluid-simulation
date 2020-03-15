@@ -17,7 +17,7 @@ public:
     GraphicShader(const char* vertex_path, const char* fragment_path);
     ~GraphicShader();
 
-    void use();
+    void use() const;
 
     void setBool(const std::string &name, bool value) const;  
     void setInt(const std::string &name, int value) const;   

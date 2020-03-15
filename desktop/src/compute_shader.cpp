@@ -83,6 +83,10 @@ void ComputeShader::setVec2(const std::string &name, const glm::vec2& value) con
     glCheckError(glUniform2f(glGetUniformLocation(_program_id, name.c_str()), value.x, value.y));
 }
 
+void ComputeShader::setVec3(const std::string &name, const glm::vec3& value) const {
+    glCheckError(glUniform3f(glGetUniformLocation(_program_id, name.c_str()), value.x, value.y, value.z));
+}
+
 void ComputeShader::setVec2i(const std::string &name, const glm::ivec2& value) const {
     glCheckError(glUniform2i(glGetUniformLocation(_program_id, name.c_str()), value.x, value.y));
 }
