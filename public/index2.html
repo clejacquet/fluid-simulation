@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Wtr</title>
+  <link rel="stylesheet" href="css/test.css">
+  <script src="//webglfundamentals.org/webgl/resources/webgl-utils.js"></script>
+</head>
+<body>
+    
+    
+    <canvas id="c" width="16" height="16"></canvas>  
+    <!-- vertex shader -->
+    <script id="2d-vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        
+        void main() {
+            gl_Position = a_position;
+        }
+    </script>
+    <!-- fragment shader -->
+    <script id="2d-fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform vec4 u_color;
+        uniform sampler2D u_texture;
+        
+        void main() {
+            gl_FragColor = texture2D(u_texture, vec2(0.5, 0.5)) * u_color;
+        }
+    </script>
+    <script src="js/test.js"></script>
+
+</body>
+</html>
+
+<!-- end snippet -->
+

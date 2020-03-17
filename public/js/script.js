@@ -1,3 +1,5 @@
+
+
 const vsRender = 
 `attribute vec3 pos;
 
@@ -15,11 +17,15 @@ const fsRender =
 varying mediump vec2 rel_coords;
 
 uniform sampler2D tex;
+uniform mediump float dt;
 
 void main() {
     mediump vec4 color_factor = texture2D(tex, rel_coords);
 
-    mediump vec3 color = color_factor.x * vec3(0.2, 0.6, 1.0);
+    // mediump float red_val = dt - floor(dt);
+    mediump vec3 color = vec3(0.2, 0.6, 1.0);
+
+    color = color_factor.x * color;
     gl_FragColor = vec4(color, 1.0);
 }
 `;
@@ -71,6 +77,15 @@ void main() {
     ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
 
     gl_FragColor = vec4(advect_boundary(coords), 0.0, 0.0);
+}
+`;
+
+const fsFirstColor =
+`
+varying mediump vec2 rel_coords;
+
+void main() {
+    gl_FragColor = vec4(length(rel_coords - vec2(0.5, 0.5)), 0.0, 0.0, 0.0);
 }
 `;
 
@@ -231,7 +246,7 @@ mediump vec2 applyForce(ivec2 coords) {
     mediump vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
 
     if (coords.x > 0 && coords.x < size.x - 1 && coords.y > 0 && coords.y < size.x - 1) {
-        mediump vec2 v_xy = 500.0 * vec2(0.0, -1.0) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 100.0);
+        mediump vec2 v_xy = 250.0 * vec2(0.0, -1.0) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 100.0);
         // mediump vec2 dir = vec2(click_pos) - vec2(coords);
         // mediump vec2 v_xy = length(dir) < 10.0 ? normalize(dir) * 40.0 : vec2(0.0);
         // mediump vec2 v_xy = vec2(0.0, -50.0);
@@ -418,8 +433,11 @@ const SIM_WIDTH = 128;
 const SIM_HEIGHT = 128;
 
 let color_vec = [ 0.3, 0.5, 0.0 ];
+let total_dt = 0.0;
 
 function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
+    total_dt += deltaTime * 0.0001;
+
     gl.viewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
   
@@ -436,6 +454,7 @@ function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
     color_vec[2] = (color_vec[2] + deltaTime / 5000) % 1.0;
 
     gl.uniform3f(gl.getUniformLocation(shaders.render, "color"), color_vec[0], color_vec[1], color_vec[2]);
+    gl.uniform1f(gl.getUniformLocation(shaders.render, "dt"), total_dt);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, textures.color1);
@@ -447,10 +466,20 @@ function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
-  
+
+
+function generateEmptyTextureData(width, height) {
+    const data = new Array(4 * width * height);
+
+    for (let j = 0; j < 4 * width * height; ++j) {
+        data[j] = 0.1;
+    }
+
+    return new Float32Array(data);
+}
 
 function generateTextureData(width, height) {
-    const data = new Array(4 * width * height);
+    const data = new Uint16Array(4 * width * height);
 
     const max_distance = Math.sqrt(Math.pow(width * 0.5, 2) + Math.pow(height * 0.5, 2));
 
@@ -458,27 +487,37 @@ function generateTextureData(width, height) {
         for (let i = 0; i < width; ++i) {
             const distance = Math.sqrt(Math.pow(width * 0.5 - i, 2) + Math.pow(height * 0.5 - j, 2)) / max_distance;
 
-            data[(j * width + i) * 4 + 0] = Math.pow(1.0 - distance, 2.0);
+            data[(j * width + i) * 4 + 0] = toHalf(Math.pow(1.0 - distance, 2.0));
         }
     }
 
-    return new Float32Array(data);
+    return data;
 }
 
 function generateVelocityData(width, height) {
-    const data = new Array(4 * width * height);
+    const data = new Uint16Array(4 * width * height);
 
 
     for (let j = 0; j < height; ++j) {
         for (let i = 0; i < width; ++i) {
-            data[(j * width + i) * 4 + 0] = 0.0;
-            data[(j * width + i) * 4 + 1] = 0.0;
-            data[(j * width + i) * 4 + 2] = 0.0;
-            data[(j * width + i) * 4 + 3] = 0.0;
+            data[(j * width + i) * 4 + 0] = toHalf(0.0);
+            data[(j * width + i) * 4 + 1] = toHalf(0.0);
+            data[(j * width + i) * 4 + 2] = toHalf(0.0);
+            data[(j * width + i) * 4 + 3] = toHalf(0.0);
         }
     }
 
-    return new Float32Array(data);
+    return data;
+}
+
+let counter = 0;
+class Framebuffer {
+
+    constructor(fb) {
+        this.id = counter++;
+        this.fb = fb;
+    }
+
 }
 
 function loadFramebuffer(gl, texture) {
@@ -490,11 +529,11 @@ function loadFramebuffer(gl, texture) {
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    return fb;
+    return new Framebuffer(fb);
 }
 
 function runStep(gl, context, quad, shader, framebuffer, textures) {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer.fb);
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
   
@@ -537,15 +576,6 @@ function main() {
 
     let has_clicked = false;
     let click_pos;
-
-    canvas.addEventListener("click", (e) => {
-        const x = e.clientX - canvas.getBoundingClientRect().left;
-        const y = SCREEN_HEIGHT - (e.clientY - canvas.getBoundingClientRect().top) - 1;
-        // alert(`${x}, ${y}`);
-        
-        click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
-        has_clicked = true;
-    });
     
     // canvas.addEventListener("touch", (e) => {
     //     const x = e.clientX - canvas.getBoundingClientRect().left;
@@ -567,9 +597,14 @@ function main() {
     gl.getExtension('EXT_color_buffer_float');
     gl.getExtension('OES_texture_float');
     gl.getExtension('OES_texture_float_linear');
+    const hf_ext = gl.getExtension('OES_texture_half_float');
+    gl.getExtension('OES_texture_half_float_linear');
+    
+
     
     const quad = new Quad(gl);
     const render_shader = initShaderProgram(gl, vsRender, fsRender);
+    const first_color_shader = initShaderProgram(gl, vsRender, fsFirstColor);
     const advect_boundary_shader = initShaderProgram(gl, vsRender, fsAdvectBoundary);
     const advect_color_shader = initShaderProgram(gl, vsRender, fsAdvectColor);
     const advect_velocity_shader = initShaderProgram(gl, vsRender, fsAdvectVelocity);
@@ -581,13 +616,13 @@ function main() {
     const pressure_solve_shader = initShaderProgram(gl, vsRender, fsPressureSolve);
     const gradient_sub_shader = initShaderProgram(gl, vsRender, fsGradientSub);
 
-    const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
-    const color2 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
-    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateVelocityData(SIM_WIDTH, SIM_HEIGHT));
-    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT, generateVelocityData(SIM_WIDTH, SIM_HEIGHT));
-    const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT);
-    const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT);
-    const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, gl.FLOAT);
+    const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const color2 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
 
     const color1_fb = loadFramebuffer(gl, color1);
     const color2_fb = loadFramebuffer(gl, color2);
@@ -621,6 +656,7 @@ function main() {
 
     const shaders = {
         render: render_shader,
+        first_color: first_color_shader,
         advect_boundary: advect_boundary_shader,
         advect_color: advect_color_shader,
         advect_velocity: advect_velocity_shader,
@@ -638,8 +674,27 @@ function main() {
         dx: 1.0,
         viscosity: 0.1
     };
+    
+    let reset = false;
 
-    setInterval(() => {
+    canvas.addEventListener("click", (e) => {
+        // if (e.button == 0) {
+        //     reset = true;
+        //     return;
+        // }
+        const x = e.clientX - canvas.getBoundingClientRect().left;
+        const y = SCREEN_HEIGHT - (e.clientY - canvas.getBoundingClientRect().top) - 1;
+        // alert(`${x}, ${y}`);
+        
+        click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
+        has_clicked = true;
+    }, false);
+
+    runStep(gl, context, quad, shaders.first_color, framebuffers.color1, []);
+
+    const step_func = (deltaTime) => {
+        context.timestep = deltaTime / 1000.0;
+
         gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
         
         runStep(gl, context, quad, shaders.advect_boundary, framebuffers.velocity2, [ 
@@ -699,7 +754,7 @@ function main() {
             delete context.click_pos;
         }
 
-        runStep(gl, context, quad, shaders.divergence, framebuffers.divergence, [ 
+        runStep(gl, context, quad, shaders.divergence, framebuffers.divergence, [
             { id: textures.velocity1, name: "velocity_sampler" }
         ]);
 
@@ -735,20 +790,44 @@ function main() {
         [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
         [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
 
-        // gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffers.color1);
-        // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-        // gl.blitFramebuffer(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, gl.COLOR_BUFFER_BIT , gl.NEAREST);
         
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    }, 33);
+    };
 
+    // setInterval(() => {
+        
+    // }, 33);
+    const color1_ref = framebuffers.color1;
     // Draw the scene repeatedly
     function render(now) {
         const deltaTime = now - then;
         then = now;
 
-        drawScene(gl, quad, shaders, textures, framebuffers, deltaTime);
+        // if (reset) {
+        //     reset = false;
 
+        //     gl.bindTexture(gl.TEXTURE_2D, textures.color1);
+
+        //     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, gl.RGBA, gl.FLOAT, generateEmptyTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
+
+        //     gl.bindTexture(gl.TEXTURE_2D, textures.color2);
+
+        //     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SCREEN_WIDTH, SCREEN_HEIGHT, 0, gl.RGBA, gl.FLOAT, generateEmptyTextureData(SCREEN_WIDTH, SCREEN_HEIGHT));
+
+        //     gl.bindTexture(gl.TEXTURE_2D, null);
+        // }
+
+        
+        step_func(deltaTime);
+
+        // if (color1_ref.id !== framebuffers.color1.id) {
+        //     console.log('not the same!! ' + color1_ref.id + ', ' + framebuffers.color1.id);
+        // } else {
+        //     console.log('same!! ' + color1_ref.id + ', ' + framebuffers.color1.id);
+        // }
+
+        drawScene(gl, quad, shaders, textures, framebuffers, deltaTime);
+        
         requestAnimationFrame(render);
     }
 
