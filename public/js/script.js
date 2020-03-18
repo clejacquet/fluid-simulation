@@ -85,7 +85,7 @@ const fsFirstColor =
 varying mediump vec2 rel_coords;
 
 void main() {
-    gl_FragColor = vec4(length(rel_coords - vec2(0.5, 0.5)), 0.0, 0.0, 0.0);
+    gl_FragColor = vec4(0.7071 - length(rel_coords - vec2(0.5, 0.5)), 0.0, 0.0, 0.0);
 }
 `;
 
@@ -571,6 +571,10 @@ function runStep(gl, context, quad, shader, framebuffer, textures) {
     // gl.bindVertexArray(null);
 }
 
+function supportedFloatType() {
+
+}
+
 function main() {
     const canvas = document.querySelector("#glCanvas");
 
@@ -594,13 +598,16 @@ function main() {
         return;
     }
 
-    gl.getExtension('EXT_color_buffer_float');
-    gl.getExtension('OES_texture_float');
-    gl.getExtension('OES_texture_float_linear');
-    const hf_ext = gl.getExtension('OES_texture_half_float');
-    gl.getExtension('OES_texture_half_float_linear');
+    const exts = {
+        color_float: gl.getExtension('EXT_color_buffer_float'),
+        texture_float: gl.getExtension('OES_texture_float'),
+        texture_float_linear: gl.getExtension('OES_texture_float_linear'),
+        texture_half_float: gl.getExtension('OES_texture_half_float'),
+        texture_half_float_linear: gl.getExtension('OES_texture_half_float_linear')
+    };
     
-
+    
+    const getFloatType = getFloatTypeBuilder(gl, exts);
     
     const quad = new Quad(gl);
     const render_shader = initShaderProgram(gl, vsRender, fsRender);
@@ -616,13 +623,16 @@ function main() {
     const pressure_solve_shader = initShaderProgram(gl, vsRender, fsPressureSolve);
     const gradient_sub_shader = initShaderProgram(gl, vsRender, fsGradientSub);
 
-    const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
-    const color2 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
-    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
-    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
-    const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
-    const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
-    const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const float_type = getFloatType();
+
+    // const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
+    const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, float_type);
+    const color2 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, float_type);
+    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, float_type);
+    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, float_type);
+    const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, float_type);
+    const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, float_type);
+    const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, gl.RGBA, gl.RGBA, float_type);
 
     const color1_fb = loadFramebuffer(gl, color1);
     const color2_fb = loadFramebuffer(gl, color2);
