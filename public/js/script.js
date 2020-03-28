@@ -645,6 +645,12 @@ function supportedFloatType() {
 function main() {
     const canvas = document.querySelector("#glCanvas");
 
+    canvas.width = 2;
+    canvas.height = 2;
+
+    canvas.width = SCREEN_WIDTH;
+    canvas.height = SCREEN_HEIGHT;
+
     let click_pos;
     let force_dir = {
         x: 0,
