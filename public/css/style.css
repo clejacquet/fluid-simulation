@@ -10,3 +10,20 @@ body {
     right: 0;
     margin: auto;
 }
+
+
+html[data-modal-active="true"] {
+    touch-action: none;
+    -ms-scroll-chaining: none;
+        overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+    overflow: hidden;
+}
+  
+[data-modal-active="true"] body {
+    touch-action: none;
+    -ms-scroll-chaining: none;
+        overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+    overflow: hidden;
+}
