@@ -1011,4 +1011,6 @@ function main() {
     requestAnimationFrame(render);
 }
 
-main(); 
+window.onload = () => {
+    main(); 
+}
