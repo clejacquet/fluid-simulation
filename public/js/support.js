@@ -1,5 +1,4 @@
-
-const getFloatTypeBuilder = (gl, exts) => {
+const getFloatTypeBuilder = (gl, exts, format, inner_format, float_type, half_float_type) => {
     const vs = 
     `attribute vec4 a_position;
     
@@ -36,7 +35,7 @@ const getFloatTypeBuilder = (gl, exts) => {
         1.0, -1.0,
         1.0,  1.0]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(positionLocation);
-    gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(positionLocation, 2, float_type, false, 0, 0);
     
     var whiteTex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, whiteTex);
@@ -49,10 +48,10 @@ const getFloatTypeBuilder = (gl, exts) => {
 
 
 
-    function test(gl, format) {
+    function test(gl, type) {
         var tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, format, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, inner_format, 1, 1, 0, format, type, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         
@@ -69,7 +68,7 @@ const getFloatTypeBuilder = (gl, exts) => {
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
         gl.enableVertexAttribArray(positionLocation);
-        gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(positionLocation, 2, float_type, false, 0, 0);
         
         // Draw the rectangle.
         gl.bindTexture(gl.TEXTURE_2D, whiteTex);
@@ -88,7 +87,7 @@ const getFloatTypeBuilder = (gl, exts) => {
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         
         var pixel = new Uint8Array(4);
-        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        gl.readPixels(0, 0, 1, 1, format, gl.UNSIGNED_BYTE, pixel);
 
         gl.bindTexture(gl.TEXTURE_2D, null);
         gl.useProgram(null);
@@ -102,10 +101,100 @@ const getFloatTypeBuilder = (gl, exts) => {
     }
         
     return () => {
-        if (test(gl, gl.FLOAT)) {
-            return gl.FLOAT;
+        if (test(gl, float_type)) {
+            // alert("float");
+            return float_type;
+            // return half_float_type;
+
+        } else if (test(gl, half_float_type)) {
+            // alert("half_float");
+            return half_float_type;
         } else {
-            return exts.texture_half_float.HALF_FLOAT_OES;
+            return half_float_type;
         }
     }
 };
+
+function loadWebGL1(gl) {
+    const exts = {
+        color_float: gl.getExtension('EXT_color_buffer_float'),
+        texture_float: gl.getExtension('OES_texture_float'),
+        texture_float_linear: gl.getExtension('OES_texture_float_linear'),
+        texture_half_float: gl.getExtension('OES_texture_half_float'),
+        texture_half_float_linear: gl.getExtension('OES_texture_half_float_linear')
+    };
+
+    const float_type = getFloatTypeBuilder(gl, exts, gl.RGBA, gl.RGBA, gl.FLOAT, exts.texture_half_float.HALF_FLOAT_OES)();
+
+    return {
+        version: 1,
+        exts: exts,
+        gl: gl,
+        float32Support: (float_type == gl.FLOAT),
+        float16Support: (float_type == gl.FLOAT || float_type == exts.texture_half_float.HALF_FLOAT_OES),
+        format: {
+            r: gl.RGBA,
+            rg: gl.RGBA,
+            rgb: gl.RGBA,
+            rgba: gl.RGBA
+        },
+        inner_format: {
+            rf: gl.RGBA,
+            rgf: gl.RGBA,
+            rgbf: gl.RGBA,
+            rgbaf: gl.RGBA
+        },
+        type: {
+            float: float_type
+        }
+    };
+}
+
+function loadWebGL2(gl) {
+    const exts = {
+        color_float: gl.getExtension('EXT_color_buffer_float'),
+        texture_float: gl.getExtension('OES_texture_float'),
+        texture_float_linear: gl.getExtension('OES_texture_float_linear')
+    };
+
+    const float_type = getFloatTypeBuilder(gl, exts, gl.RGBA, gl.RGBA32F, gl.FLOAT, gl.HALF_FLOAT)();
+
+    return {
+        version: 2,
+        exts: exts,
+        gl: gl,
+        float32Support: (float_type == gl.FLOAT),
+        float16Support: (float_type == gl.FLOAT || float_type == gl.HALF_FLOAT),
+        format: {
+            r: gl.RED,
+            rg: gl.RG,
+            rgb: gl.RGB,
+            rgba: gl.RGBA
+        },
+        inner_format: {
+            rf: (float_type == gl.FLOAT) ? gl.R32F : gl.R16F,
+            rgf: (float_type == gl.FLOAT) ? gl.RG32F : gl.RG16F,
+            rgbf: (float_type == gl.FLOAT) ? gl.RGB32F : gl.RGB16F,
+            rgbaf: (float_type == gl.FLOAT) ? gl.RGBA32F : gl.RGBA16F
+        },
+        type: {
+            float: float_type
+        }
+    };
+}
+
+function loadGL(canvas) {
+    let gl = canvas.getContext("webgl2", { antialias: false });
+
+    if (!gl) {
+        gl = canvas.getContext("webgl", { antialias: false });
+
+        if (!gl) {
+            return null;
+        } else {
+            return loadWebGL1(gl);
+        }
+    } else {
+        return loadWebGL2(gl);
+    }
+}

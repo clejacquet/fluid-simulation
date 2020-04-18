@@ -1,5 +1,11 @@
 body {
     background-color: rgb(40, 48, 66);
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
 }
 
 #glCanvas {
@@ -9,6 +15,22 @@ body {
     left: 0;
     right: 0;
     margin: auto;
+}
+
+#info-section {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: left;
+    pointer-events: none;
+}
+
+#info-section > span {
+    background-color: #FFFFFF44;
+    color: #FFFFFF;
+    user-select: none;
+    pointer-events: none;
 }
 
 
