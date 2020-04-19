@@ -30,11 +30,11 @@ void main() {
 }
 `;
 
-const fsAdvectBoundary = 
+const fsAdvectBoundaryX = 
 `
 varying highp vec2 rel_coords;
 
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
 
 uniform highp float timestep;
 uniform highp float dx;
@@ -42,41 +42,55 @@ uniform highp float viscosity;
 uniform ivec2 size;
 
 
-highp vec2 advect_boundary(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
+highp float advect_boundary(ivec2 coords) {
+    highp vec2 d = vec2(1.0) / (vec2(size.x + 1, size.y) - vec2(1.0));
 
-    if (coords.x == 0 && coords.y == 0) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(d.x, d.y)).xy;
+    if (coords.x <= 0) {
+        return - texture2D(velocity_sampler_x, rel_coords + vec2(d.x, 0)).x;
     }
-    else if (coords.x == size.x - 1 && coords.y == size.y - 1) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(-d.x, -d.y)).xy;
-    }
-    else if (coords.x == size.x - 1 && coords.y == 0) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(-d.x, d.y)).xy;
-    }
-    else if (coords.x == 0 && coords.y == size.y - 1) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(d.x, -d.y)).xy;
-    }
-    else if (coords.x == 0) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(d.x, 0.0)).xy;
-    }
-    else if (coords.x == size.x - 1) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(-d.x, 0.0)).xy;
-    }
-    else if (coords.y == 0) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(0.0, d.y)).xy;
-    }
-    else if (coords.y == size.y - 1) {
-        return - texture2D(velocity_sampler, rel_coords + vec2(0.0, -d.y)).xy;
+    else if (coords.x >= size.x) {
+        return - texture2D(velocity_sampler_x, rel_coords - vec2(d.x, 0)).x;
     }
 
-    return texture2D(velocity_sampler, rel_coords).xy;
+    return texture2D(velocity_sampler_x, rel_coords).x;
 }
 
 void main() {
-    ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
+    ivec2 coords = ivec2(floor(rel_coords * vec2(size.x + 1, size.y)));
 
-    gl_FragColor = vec4(advect_boundary(coords), 0.0, 0.0);
+    gl_FragColor = vec4(advect_boundary(coords), 0.0, 0.0, 0.0);
+}
+`;
+
+const fsAdvectBoundaryY = 
+`
+varying highp vec2 rel_coords;
+
+uniform sampler2D velocity_sampler_y;
+
+uniform highp float timestep;
+uniform highp float dx;
+uniform highp float viscosity;
+uniform ivec2 size;
+
+
+highp float advect_boundary(ivec2 coords) {
+    highp vec2 d = vec2(1.0) / (vec2(size.x, size.y + 1) - vec2(1.0));
+
+    if (coords.y <= 0) {
+        return - texture2D(velocity_sampler_y, rel_coords + vec2(0, d.y)).x;
+    }
+    else if (coords.y >= size.y) {
+        return - texture2D(velocity_sampler_y, rel_coords - vec2(0, d.y)).x;
+    }
+
+    return texture2D(velocity_sampler_y, rel_coords).x;
+}
+
+void main() {
+    ivec2 coords = ivec2(floor(rel_coords * vec2(size.x, size.y + 1)));
+
+    gl_FragColor = vec4(advect_boundary(coords), 0.0, 0.0, 0.0);
 }
 `;
 
@@ -124,7 +138,8 @@ const fsAdvectColor =
 varying highp vec2 rel_coords;
 
 uniform sampler2D color_sampler;
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 
 uniform highp float timestep;
 
@@ -135,14 +150,25 @@ uniform ivec2 size;
 uniform ivec2 size_color;
 
 
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float min_v = 1.0 / float(size.x);
+    highp float max_v = 1.0 - min_v;
+
+    highp float ux = texture2D(velocity_sampler_x, vec2(min_v + c.x * (max_v - min_v), c.y)).x;
+    highp float uy = texture2D(velocity_sampler_y, vec2(c.x, min_v + c.y * (max_v - min_v))).x;
+
+    return vec2(ux, uy);
+}
+
 highp vec3 advect(ivec2 coords) {
-    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy;
+    highp vec2 velocity_value = velocity_sample(rel_coords);
+
     // highp vec2 velocity_value = vec2(0, -60);
 
     velocity_value /= 1000.0;
 
     highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
-    highp vec2 mid_velocity_value = texture2D(velocity_sampler, rel_mid_coords).xy;
+    highp vec2 mid_velocity_value = velocity_sample(rel_mid_coords);
 
     mid_velocity_value /= 1000.0;
 
@@ -156,15 +182,18 @@ highp vec3 advect(ivec2 coords) {
 void main() {
     ivec2 coords = ivec2(floor(rel_coords * vec2(size_color)));
 
+    // ivec2 vel_coords = ivec2(floor(rel_coords))
+
     gl_FragColor = vec4(advect(coords), 0.0);
 }
 `;
 
-const fsAdvectVelocity =
+const fsAdvectVelocityX =
 `
 varying highp vec2 rel_coords;
 
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 
 uniform highp float timestep;
 
@@ -173,14 +202,24 @@ uniform highp float dy;
 
 uniform ivec2 size;
 
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float d = 1.0 / float(size.x);
 
-highp vec2 advect(ivec2 coords) {
-    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy;
+    highp float ux = texture2D(velocity_sampler_x, rel_coords).x;
+    highp float uy = texture2D(velocity_sampler_y, vec2(-d + c.x * (1.0 + 2.0 * d), d + c.y * (1.0 - 2.0 * d))).x;
+
+    return vec2(ux, uy);
+}
+
+highp float advect(ivec2 coords) {
+    highp vec2 velocity_value = velocity_sample(rel_coords);
+
+    // highp vec2 velocity_value = vec2(0, -60);
 
     velocity_value /= 1000.0;
 
     highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
-    highp vec2 mid_velocity_value = texture2D(velocity_sampler, rel_mid_coords).xy;
+    highp vec2 mid_velocity_value = velocity_sample(rel_mid_coords);
 
     mid_velocity_value /= 1000.0;
 
@@ -188,21 +227,23 @@ highp vec2 advect(ivec2 coords) {
 
     clamp(rel_prev_coords, vec2(0.0), vec2(1.0));
 
-    return texture2D(velocity_sampler, rel_prev_coords).xy;
+    return texture2D(velocity_sampler_x, rel_prev_coords).x;
 }
 
 void main() {
     ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
 
-    gl_FragColor = vec4(advect(coords), 0.0, 0.0);
+    gl_FragColor = vec4(advect(coords), 0.0, 0.0, 0.0);
 }
 `;
 
-const fsAdvectPressure =
-`varying highp vec2 rel_coords;
 
-uniform sampler2D pressure_sampler;
-uniform sampler2D velocity_sampler;
+const fsAdvectVelocityY =
+`
+varying highp vec2 rel_coords;
+
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 
 uniform highp float timestep;
 
@@ -211,14 +252,74 @@ uniform highp float dy;
 
 uniform ivec2 size;
 
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float d = 1.0 / float(size.x);
+
+    highp float ux = texture2D(velocity_sampler_x, vec2(d + c.x * (1.0 - 2.0 * d), -d + c.y * (1.0 + 2.0 * d))).x;
+    highp float uy = texture2D(velocity_sampler_y, rel_coords).x;
+
+    return vec2(ux, uy);
+}
 
 highp float advect(ivec2 coords) {
-    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy;
+    highp vec2 velocity_value = velocity_sample(rel_coords);
+
+    // highp vec2 velocity_value = vec2(0, -60);
 
     velocity_value /= 1000.0;
 
     highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
-    highp vec2 mid_velocity_value = texture2D(velocity_sampler, rel_mid_coords).xy;
+    highp vec2 mid_velocity_value = velocity_sample(rel_mid_coords);
+
+    mid_velocity_value /= 1000.0;
+
+    highp vec2 rel_prev_coords = rel_coords - timestep * vec2(dx, dy) * mid_velocity_value;
+
+    clamp(rel_prev_coords, vec2(0.0), vec2(1.0));
+
+    return texture2D(velocity_sampler_y, rel_prev_coords).x;
+}
+
+void main() {
+    ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
+
+    gl_FragColor = vec4(advect(coords), 0.0, 0.0, 0.0);
+}
+`;
+
+const fsAdvectPressure =
+`varying highp vec2 rel_coords;
+
+uniform sampler2D pressure_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
+
+uniform highp float timestep;
+
+uniform highp float dx;
+uniform highp float dy;
+
+uniform ivec2 size;
+
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float min_v = 1.0 / float(size.x);
+    highp float max_v = 1.0 - min_v;
+
+    highp float ux = texture2D(velocity_sampler_x, vec2(min_v + c.x * (max_v - min_v), c.y)).x;
+    highp float uy = texture2D(velocity_sampler_y, vec2(c.x, min_v + c.y * (max_v - min_v))).x;
+
+    return vec2(ux, uy);
+}
+
+highp float advect(ivec2 coords) {
+    highp vec2 velocity_value = velocity_sample(rel_coords);
+
+    // highp vec2 velocity_value = vec2(0, -60);
+
+    velocity_value /= 1000.0;
+
+    highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
+    highp vec2 mid_velocity_value = velocity_sample(rel_mid_coords);
 
     mid_velocity_value /= 1000.0;
 
@@ -236,11 +337,12 @@ void main() {
 }
 `;
 
-const fsDiffuse =
+const fsDiffuseX =
 `
 varying highp vec2 rel_coords;
 
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 
 uniform highp float timestep;
 uniform highp float dx;
@@ -248,24 +350,75 @@ uniform highp float viscosity;
 uniform ivec2 size;
 
 
-highp vec2 velocity_diffuse(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
+highp float velocity_diffuse() {
+    highp vec2 d = vec2(1.0) / (vec2(size.x + 1, size.y) - vec2(1.0));
     highp float alpha = dx * dx / (viscosity * timestep);
     highp float r_beta = 1.0 / (4.0 + alpha);
 
-    highp vec2 diffused_velocity;
+    highp float diffused_velocity;
 
     if (rel_coords.x > 0.0 && rel_coords.x < 1.0 && rel_coords.y > 0.0 && rel_coords.y < 1.0) {
-        highp vec2 xL = texture2D(velocity_sampler, rel_coords - vec2(d.x, 0)).xy;
-        highp vec2 xR = texture2D(velocity_sampler, rel_coords + vec2(d.x, 0)).xy;
-        highp vec2 xB = texture2D(velocity_sampler, rel_coords - vec2(0, d.y)).xy;
-        highp vec2 xT = texture2D(velocity_sampler, rel_coords + vec2(0, d.y)).xy;
+        highp float xL = texture2D(velocity_sampler_x, rel_coords - vec2(d.x, 0)).x;
+        highp float xR = texture2D(velocity_sampler_x, rel_coords + vec2(d.x, 0)).x;
+        highp float xB = texture2D(velocity_sampler_x, rel_coords - vec2(0, d.y)).x;
+        highp float xT = texture2D(velocity_sampler_x, rel_coords + vec2(0, d.y)).x;
 
-        highp vec2 b = texture2D(velocity_sampler, rel_coords).xy;
+        highp float b = texture2D(velocity_sampler_x, rel_coords).x;
 
         diffused_velocity = (xL + xR + xB + xT + alpha * b) * r_beta;
     } else {
-        diffused_velocity = texture2D(velocity_sampler, rel_coords).xy;
+        diffused_velocity = texture2D(velocity_sampler_x, rel_coords).x;
+    }
+
+    return diffused_velocity;
+}
+
+void main() {
+    gl_FragColor = vec4(velocity_diffuse(), 0.0, 0.0, 0.0);
+}
+`
+
+
+const fsDiffuseY =
+`
+varying highp vec2 rel_coords;
+
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
+
+uniform highp float timestep;
+uniform highp float dx;
+uniform highp float viscosity;
+uniform ivec2 size;
+
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float d = 1.0 / float(size.x);
+
+    // highp float ux = texture2D(velocity_sampler_x, vec2(d + c.x * (1.0 - 2.0 * d), -d + c.y * (1.0 + 2.0 * d))).x;
+    highp float ux = texture2D(velocity_sampler_x, rel_coords).x;
+    highp float uy = texture2D(velocity_sampler_y, rel_coords).x;
+
+    return vec2(ux, uy);
+}
+
+highp float velocity_diffuse(ivec2 coords) {
+    highp vec2 d = vec2(1.0) / (vec2(size.x, size.y + 1) - vec2(1));
+    highp float alpha = dx * dx / (viscosity * timestep);
+    highp float r_beta = 1.0 / (4.0 + alpha);
+
+    highp float diffused_velocity;
+
+    if (rel_coords.x > 0.0 && rel_coords.x < 1.0 && rel_coords.y > 0.0 && rel_coords.y < 1.0) {
+        highp float xL = texture2D(velocity_sampler_y, rel_coords - vec2(d.x, 0)).x;
+        highp float xR = texture2D(velocity_sampler_y, rel_coords + vec2(d.x, 0)).x;
+        highp float xB = texture2D(velocity_sampler_y, rel_coords - vec2(0, d.y)).x;
+        highp float xT = texture2D(velocity_sampler_y, rel_coords + vec2(0, d.y)).x;
+
+        highp float b = texture2D(velocity_sampler_y, rel_coords).x;
+
+        diffused_velocity = (xL + xR + xB + xT + alpha * b) * r_beta;
+    } else {
+        diffused_velocity = texture2D(velocity_sampler_y, rel_coords).x;
     }
 
     return diffused_velocity;
@@ -274,15 +427,16 @@ highp vec2 velocity_diffuse(ivec2 coords) {
 void main() {
     ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
 
-    gl_FragColor = vec4(velocity_diffuse(coords), 0.0, 0.0);
+    gl_FragColor = vec4(velocity_diffuse(coords), 0.0, 0.0, 0.0);
 }
 `
 
-const fsApplyForce =
+const fsApplyForceX =
 `
 varying highp vec2 rel_coords;
 
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 
 uniform highp float timestep;
 uniform highp float dx;
@@ -291,26 +445,59 @@ uniform ivec2 click_pos;
 uniform highp vec2 force_dir;
 
 
-highp vec2 applyForce(ivec2 coords) {
+highp float applyForce(ivec2 coords) {
     highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
 
-    if (coords.x > 0 && coords.x < size.x - 1 && coords.y > 0 && coords.y < size.x - 1) {
+    if (coords.x > 0 && coords.x < size.x && coords.y > 0 && coords.y < size.x - 1) {
         highp float dist = distance(vec2(coords), vec2(click_pos));
         highp vec2 v_xy = 100.0 * timestep * force_dir * length(force_dir) * exp(- (dist * dist) / 50.0);
-        // highp vec2 v_xy = 20.0 * vec2(0.0, -1.0) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 5.0);
-        // highp vec2 dir = vec2(click_pos) - vec2(coords);
-        // highp vec2 v_xy = length(dir) < 10.0 ? normalize(dir) * 40.0 : vec2(0.0);
-        // highp vec2 v_xy = vec2(0.0, -50.0);
-        return v_xy + texture2D(velocity_sampler, rel_coords).xy;
+        return v_xy.x + texture2D(velocity_sampler_x, rel_coords).x;
+        // return texture2D(velocity_sampler_x, rel_coords).x;
     }
 
-    return vec2(0.0, 0.0);
+    return 0.0;
 }
 
 void main() {
-    ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
+    ivec2 coords = ivec2(floor(rel_coords * vec2(size.x + 1, size.y)));
 
-    gl_FragColor = vec4(applyForce(coords), 0.0, 0.0);
+    gl_FragColor = vec4(applyForce(coords), 0.0, 0.0, 0.0);
+}
+`
+
+
+const fsApplyForceY =
+`
+varying highp vec2 rel_coords;
+
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
+
+uniform highp float timestep;
+uniform highp float dx;
+uniform ivec2 size;
+uniform ivec2 click_pos;
+uniform highp vec2 force_dir;
+
+
+highp float applyForce(ivec2 coords) {
+    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
+
+    if (coords.x > 0 && coords.x < size.x - 1 && coords.y > 0 && coords.y < size.y) {
+        highp float dist = distance(vec2(coords), vec2(click_pos));
+        highp vec2 v_xy = 100.0 * timestep * force_dir * length(force_dir) * exp(- (dist * dist) / 50.0);
+        // highp vec2 v_xy = 100.0 * timestep * vec2(-2.0, -2.0) * length(force_dir) * exp(- (dist * dist) / 50.0);
+
+        return v_xy.y + texture2D(velocity_sampler_y, rel_coords).x;
+    }
+
+    return 0.0;
+}
+
+void main() {
+    ivec2 coords = ivec2(floor(rel_coords * vec2(size.x, size.y + 1)));
+
+    gl_FragColor = vec4(applyForce(coords), 0.0, 0.0, 0.0);
 }
 `
 
@@ -318,23 +505,33 @@ const fsDivergence =
 `
 varying highp vec2 rel_coords;
 
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 
 uniform highp float timestep;
 uniform highp float dx;
 uniform highp float viscosity;
 uniform ivec2 size;
 
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float min_v = 1.0 / float(size.x);
+    highp float max_v = 1.0 - min_v;
+
+    highp float ux = texture2D(velocity_sampler_x, vec2(min_v + c.x * (max_v - min_v), c.y)).x;
+    highp float uy = texture2D(velocity_sampler_y, vec2(c.x, min_v + c.y * (max_v - min_v))).x;
+
+    return vec2(ux, uy);
+}
 
 highp float divergence_calc(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1));
+    highp vec2 d = vec2(0.5) / (vec2(size) - vec2(1));
     highp float halfrdx = 0.5 / dx;
 
     if (rel_coords.x > 0.0 && rel_coords.x < 1.0 && rel_coords.y > 0.0 && rel_coords.y < 1.0) {
-        highp vec2 xL = texture2D(velocity_sampler, rel_coords - vec2(d.x, 0)).xy;
-        highp vec2 xR = texture2D(velocity_sampler, rel_coords + vec2(d.x, 0)).xy;
-        highp vec2 xB = texture2D(velocity_sampler, rel_coords - vec2(0, d.y)).xy;
-        highp vec2 xT = texture2D(velocity_sampler, rel_coords + vec2(0, d.y)).xy;
+        highp vec2 xL = velocity_sample(rel_coords - vec2(d.x, 0));
+        highp vec2 xR = velocity_sample(rel_coords + vec2(d.x, 0));
+        highp vec2 xB = velocity_sample(rel_coords - vec2(0, d.y));
+        highp vec2 xT = velocity_sample(rel_coords + vec2(0, d.y));
 
         return halfrdx * ((xR.x - xL.x) + (xT.y - xB.y));
     }
@@ -439,11 +636,12 @@ void main() {
     gl_FragColor = vec4(pressure_solve(coords), 0.0, 0.0, 0.0);
 }`;
 
-const fsGradientSub =
+const fsGradientSubX =
 `
 varying highp vec2 rel_coords;
 
-uniform sampler2D velocity_sampler;
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
 uniform sampler2D pressure_sampler;
 
 uniform highp float timestep;
@@ -451,8 +649,16 @@ uniform highp float dx;
 uniform highp float viscosity;
 uniform ivec2 size;
 
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float d = 1.0 / float(size.x);
 
-highp vec2 gradient_sub(ivec2 coords) {
+    highp float ux = texture2D(velocity_sampler_x, rel_coords).x;
+    highp float uy = texture2D(velocity_sampler_y, vec2(-d + c.x * (1.0 + 2.0 * d), d + c.y * (1.0 - 2.0 * d))).x;
+
+    return vec2(ux, uy);
+}
+
+highp float gradient_sub(ivec2 coords) {
     highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1));
     
     highp float halfrdx = 0.5 / dx;
@@ -463,10 +669,10 @@ highp vec2 gradient_sub(ivec2 coords) {
         highp float pB = texture2D(pressure_sampler, rel_coords - vec2(0, d.y)).x;
         highp float pT = texture2D(pressure_sampler, rel_coords + vec2(0, d.y)).x;
 
-        highp vec2 current_velocity = texture2D(velocity_sampler, rel_coords).xy;
-        return (current_velocity - halfrdx * vec2(pR - pL, pT - pB));
+        highp vec2 current_velocity = velocity_sample(rel_coords);
+        return (current_velocity - halfrdx * vec2(pR - pL, pT - pB)).x;
     } else {
-        return texture2D(velocity_sampler, rel_coords).xy;
+        return texture2D(velocity_sampler_x, rel_coords).x;
     }
 }
 
@@ -474,7 +680,56 @@ highp vec2 gradient_sub(ivec2 coords) {
 void main() {
     ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
 
-    gl_FragColor = vec4(gradient_sub(coords), 0.0, 0.0);
+    gl_FragColor = vec4(gradient_sub(coords), 0.0, 0.0, 0.0);
+}
+`;
+
+
+const fsGradientSubY =
+`
+varying highp vec2 rel_coords;
+
+uniform sampler2D velocity_sampler_x;
+uniform sampler2D velocity_sampler_y;
+uniform sampler2D pressure_sampler;
+
+uniform highp float timestep;
+uniform highp float dx;
+uniform highp float viscosity;
+uniform ivec2 size;
+
+highp vec2 velocity_sample(highp vec2 c) {
+    highp float d = 1.0 / float(size.x);
+
+    highp float ux = texture2D(velocity_sampler_x, vec2(d + c.x * (1.0 - 2.0 * d), -d + c.y * (1.0 + 2.0 * d))).x;
+    highp float uy = texture2D(velocity_sampler_y, rel_coords).x;
+
+    return vec2(ux, uy);
+}
+
+highp float gradient_sub(ivec2 coords) {
+    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1));
+    
+    highp float halfrdx = 0.5 / dx;
+
+    if (rel_coords.x > 0.0 && rel_coords.x < 1.0 && rel_coords.y > 0.0 && rel_coords.y < 1.0) {
+        highp float pL = texture2D(pressure_sampler, rel_coords - vec2(d.x, 0)).x;
+        highp float pR = texture2D(pressure_sampler, rel_coords + vec2(d.x, 0)).x;
+        highp float pB = texture2D(pressure_sampler, rel_coords - vec2(0, d.y)).x;
+        highp float pT = texture2D(pressure_sampler, rel_coords + vec2(0, d.y)).x;
+
+        highp vec2 current_velocity = velocity_sample(rel_coords);
+        return (current_velocity - halfrdx * vec2(pR - pL, pT - pB)).y;
+    } else {
+        return texture2D(velocity_sampler_y, rel_coords).x;
+    }
+}
+
+
+void main() {
+    ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
+
+    gl_FragColor = vec4(gradient_sub(coords), 0.0, 0.0, 0.0);
 }
 `;
 
@@ -742,16 +997,21 @@ function main() {
     const render_shader = initShaderProgram(gl, vsRender, fsRender);
     const first_color_shader = initShaderProgram(gl, vsRender, fsFirstColor);
     const set_color_shader = initShaderProgram(gl, vsRender, fsSetColor);
-    const advect_boundary_shader = initShaderProgram(gl, vsRender, fsAdvectBoundary);
+    const advect_boundary_x_shader = initShaderProgram(gl, vsRender, fsAdvectBoundaryX);
+    const advect_boundary_y_shader = initShaderProgram(gl, vsRender, fsAdvectBoundaryY);
     const advect_color_shader = initShaderProgram(gl, vsRender, fsAdvectColor);
-    const advect_velocity_shader = initShaderProgram(gl, vsRender, fsAdvectVelocity);
+    const advect_velocity_x_shader = initShaderProgram(gl, vsRender, fsAdvectVelocityX);
+    const advect_velocity_y_shader = initShaderProgram(gl, vsRender, fsAdvectVelocityY);
     const advect_pressure_shader = initShaderProgram(gl, vsRender, fsAdvectPressure);
-    const diffuse_shader = initShaderProgram(gl, vsRender, fsDiffuse);
-    const apply_force_shader = initShaderProgram(gl, vsRender, fsApplyForce);
+    const diffuse_x_shader = initShaderProgram(gl, vsRender, fsDiffuseX);
+    const diffuse_y_shader = initShaderProgram(gl, vsRender, fsDiffuseY);
+    const apply_force_x_shader = initShaderProgram(gl, vsRender, fsApplyForceX);
+    const apply_force_y_shader = initShaderProgram(gl, vsRender, fsApplyForceY);
     const divergence_shader = initShaderProgram(gl, vsRender, fsDivergence);
     const pressure_boundary_shader = initShaderProgram(gl, vsRender, fsPressureBoundary);
     const pressure_solve_shader = initShaderProgram(gl, vsRender, fsPressureSolve);
-    const gradient_sub_shader = initShaderProgram(gl, vsRender, fsGradientSub);
+    const gradient_sub_x_shader = initShaderProgram(gl, vsRender, fsGradientSubX);
+    const gradient_sub_y_shader = initShaderProgram(gl, vsRender, fsGradientSubY);
 
     
     // inner_formats.rgbaf = gl.RGBA16F; 
@@ -765,16 +1025,20 @@ function main() {
     // const color1 = loadTextureData(gl, SCREEN_WIDTH, SCREEN_HEIGHT, gl.RGBA, gl.RGBA, hf_ext.HALF_FLOAT_OES);
     const color1 = loadTextureData(gl, COLOR_WIDTH, COLOR_HEIGHT, inner_formats.rgbaf, formats.rgba, types.float);
     const color2 = loadTextureData(gl, COLOR_WIDTH, COLOR_HEIGHT, inner_formats.rgbaf, formats.rgba, types.float);
-    const velocity1 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rgf, formats.rg, types.float);
-    const velocity2 = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rgf, formats.rg, types.float);
+    const velocity1x = loadTextureData(gl, SIM_WIDTH + 1, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
+    const velocity2x = loadTextureData(gl, SIM_WIDTH + 1, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
+    const velocity1y = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT + 1, inner_formats.rf, formats.r, types.float);
+    const velocity2y = loadTextureData(gl, SIM_WIDTH, SIM_HEIGHT + 1, inner_formats.rf, formats.r, types.float);
     const pressure1 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
     const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
     const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
 
     const color1_fb = loadFramebuffer(gl, color1);
     const color2_fb = loadFramebuffer(gl, color2);
-    const velocity1_fb = loadFramebuffer(gl, velocity1);
-    const velocity2_fb = loadFramebuffer(gl, velocity2);
+    const velocity1x_fb = loadFramebuffer(gl, velocity1x);
+    const velocity2x_fb = loadFramebuffer(gl, velocity2x);
+    const velocity1y_fb = loadFramebuffer(gl, velocity1y);
+    const velocity2y_fb = loadFramebuffer(gl, velocity2y);
     const pressure1_fb = loadFramebuffer(gl, pressure1);
     const pressure2_fb = loadFramebuffer(gl, pressure2);
     const divergence_fb = loadFramebuffer(gl, divergence);
@@ -784,8 +1048,10 @@ function main() {
     const textures = {
         color1: color1,
         color2: color2,
-        velocity1: velocity1,
-        velocity2: velocity2,
+        velocity1x: velocity1x,
+        velocity2x: velocity2x,
+        velocity1y: velocity1y,
+        velocity2y: velocity2y,
         pressure1: pressure1,
         pressure2: pressure2,
         divergence: divergence
@@ -794,8 +1060,10 @@ function main() {
     const framebuffers = {
         color1: color1_fb,
         color2: color2_fb,
-        velocity1: velocity1_fb,
-        velocity2: velocity2_fb,
+        velocity1x: velocity1x_fb,
+        velocity2x: velocity2x_fb,
+        velocity1y: velocity1y_fb,
+        velocity2y: velocity2y_fb,
         pressure1: pressure1_fb,
         pressure2: pressure2_fb,
         divergence: divergence_fb
@@ -805,21 +1073,26 @@ function main() {
         render: render_shader,
         first_color: first_color_shader,
         set_color: set_color_shader,
-        advect_boundary: advect_boundary_shader,
+        advect_boundary_x: advect_boundary_x_shader,
+        advect_boundary_y: advect_boundary_y_shader,
         advect_color: advect_color_shader,
-        advect_velocity: advect_velocity_shader,
+        advect_velocity_x: advect_velocity_x_shader,
+        advect_velocity_y: advect_velocity_y_shader,
         advect_pressure: advect_pressure_shader,
-        diffuse: diffuse_shader,
-        apply_force: apply_force_shader,
+        diffuse_x: diffuse_x_shader,
+        diffuse_y: diffuse_y_shader,
+        apply_force_x: apply_force_x_shader,
+        apply_force_y: apply_force_y_shader,
         divergence: divergence_shader,
         pressure_boundary: pressure_boundary_shader,
         pressure_solve: pressure_solve_shader,
-        gradient_sub: gradient_sub_shader
+        gradient_sub_x: gradient_sub_x_shader,
+        gradient_sub_y: gradient_sub_y_shader
     };
 
     const context = {
         timestep: 0.033,
-        viscosity: 0.1
+        viscosity: 1.0
     };
     
     let reset = false;
@@ -923,14 +1196,23 @@ function main() {
     const step_func = (deltaTime) => {
         context.timestep = deltaTime / 1000.0;
 
-        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
+        gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
         
-        runStep(gl, context, quad, shaders.advect_boundary, framebuffers.velocity2, [ 
-            { id: textures.velocity1, name: "velocity_sampler" }
+        runStep(gl, context, quad, shaders.advect_boundary_x, framebuffers.velocity2x, [ 
+            { id: textures.velocity1x, name: "velocity_sampler_x" }
         ]);
         
-        [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-        [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        [ textures.velocity1x, textures.velocity2x ] = [ textures.velocity2x, textures.velocity1x ];
+        [ framebuffers.velocity1x, framebuffers.velocity2x ] = [ framebuffers.velocity2x, framebuffers.velocity1x ];
+
+        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT + 1);
+        
+        runStep(gl, context, quad, shaders.advect_boundary_y, framebuffers.velocity2y, [ 
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
+        ]);
+        
+        [ textures.velocity1y, textures.velocity2y ] = [ textures.velocity2y, textures.velocity1y ];
+        [ framebuffers.velocity1y, framebuffers.velocity2y ] = [ framebuffers.velocity2y, framebuffers.velocity1y ];
         
         gl.viewport(0, 0, COLOR_WIDTH, COLOR_HEIGHT);
 
@@ -953,7 +1235,8 @@ function main() {
         
         runStep(gl, context, quad, shaders.advect_color, framebuffers.color2, [
             { id: textures.color1, name: "color_sampler" },
-            { id: textures.velocity1, name: "velocity_sampler" },
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
         ]);
         
         [ textures.color1, textures.color2 ] = [ textures.color2, textures.color1 ];
@@ -962,39 +1245,79 @@ function main() {
         gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
 
         runStep(gl, context, quad, shaders.advect_pressure, framebuffers.pressure2, [ 
-            { id: textures.velocity1, name: "velocity_sampler" },
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" },
             { id: textures.pressure1, name: "pressure_sampler" }
         ]);
 
         [ textures.pressure1, textures.pressure2 ] = [ textures.pressure2, textures.pressure1 ];
         [ framebuffers.pressure1, framebuffers.pressure2 ] = [ framebuffers.pressure2, framebuffers.pressure1 ];
 
-        runStep(gl, context, quad, shaders.advect_velocity, framebuffers.velocity2, [ 
-            { id: textures.velocity1, name: "velocity_sampler" }
+        gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
+
+        runStep(gl, context, quad, shaders.advect_velocity_x, framebuffers.velocity2x, [ 
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
         ]);
 
-        [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-        [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        [ textures.velocity1x, textures.velocity2x ] = [ textures.velocity2x, textures.velocity1x ];
+        [ framebuffers.velocity1x, framebuffers.velocity2x ] = [ framebuffers.velocity2x, framebuffers.velocity1x ];
+
+        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT + 1);
+
+        runStep(gl, context, quad, shaders.advect_velocity_y, framebuffers.velocity2y, [ 
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
+        ]);
+
+        [ textures.velocity1y, textures.velocity2y ] = [ textures.velocity2y, textures.velocity1y ];
+        [ framebuffers.velocity1y, framebuffers.velocity2y ] = [ framebuffers.velocity2y, framebuffers.velocity1y ];
 
         for (let i = 0; i < 30; ++i) {
-            runStep(gl, context, quad, shaders.diffuse, framebuffers.velocity2, [ 
-                { id: textures.velocity1, name: "velocity_sampler" }
+            gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
+
+            runStep(gl, context, quad, shaders.diffuse_x, framebuffers.velocity2x, [ 
+                { id: textures.velocity1x, name: "velocity_sampler_x" },
+                { id: textures.velocity1y, name: "velocity_sampler_y" }
             ]);
 
-            [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-            [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+            [ textures.velocity1x, textures.velocity2x ] = [ textures.velocity2x, textures.velocity1x ];
+            [ framebuffers.velocity1x, framebuffers.velocity2x ] = [ framebuffers.velocity2x, framebuffers.velocity1x ];
+
+            gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT + 1);
+
+            runStep(gl, context, quad, shaders.diffuse_y, framebuffers.velocity2y, [ 
+                { id: textures.velocity1x, name: "velocity_sampler_x" },
+                { id: textures.velocity1y, name: "velocity_sampler_y" }
+            ]);
+
+            [ textures.velocity1y, textures.velocity2y ] = [ textures.velocity2y, textures.velocity1y ];
+            [ framebuffers.velocity1y, framebuffers.velocity2y ] = [ framebuffers.velocity2y, framebuffers.velocity1y ];
         }
 
         if (is_button_down) {
             context.click_pos = click_pos;
             context.force_dir = force_dir;
 
-            runStep(gl, context, quad, shaders.apply_force, framebuffers.velocity2, [
-                { id: textures.velocity1, name: "velocity_sampler" }
+            gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
+
+            runStep(gl, context, quad, shaders.apply_force_x, framebuffers.velocity2x, [
+                { id: textures.velocity1x, name: "velocity_sampler_x" },
+                { id: textures.velocity1y, name: "velocity_sampler_y" }
             ]);
 
-            [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-            [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+            [ textures.velocity1x, textures.velocity2x ] = [ textures.velocity2x, textures.velocity1x ];
+            [ framebuffers.velocity1x, framebuffers.velocity2x ] = [ framebuffers.velocity2x, framebuffers.velocity1x ];
+
+            gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT + 1);
+
+            runStep(gl, context, quad, shaders.apply_force_y, framebuffers.velocity2y, [
+                { id: textures.velocity1x, name: "velocity_sampler_x" },
+                { id: textures.velocity1y, name: "velocity_sampler_y" },
+            ]);
+
+            [ textures.velocity1y, textures.velocity2y ] = [ textures.velocity2y, textures.velocity1y ];
+            [ framebuffers.velocity1y, framebuffers.velocity2y ] = [ framebuffers.velocity2y, framebuffers.velocity1y ];
 
             delete context.click_pos;
             delete context.force_dir;
@@ -1006,8 +1329,11 @@ function main() {
             force_dir.y = 0;
         }
 
+        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
+
         runStep(gl, context, quad, shaders.divergence, framebuffers.divergence, [
-            { id: textures.velocity1, name: "velocity_sampler" }
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
         ]);
 
         runStep(gl, context, quad, shaders.pressure_boundary, framebuffers.pressure2, [ 
@@ -1027,20 +1353,45 @@ function main() {
             [ framebuffers.pressure1, framebuffers.pressure2] = [ framebuffers.pressure2, framebuffers.pressure1 ];
         }
 
-        runStep(gl, context, quad, shaders.advect_boundary, framebuffers.velocity2, [ 
-            { id: textures.velocity1, name: "velocity_sampler" }
+        gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
+
+        runStep(gl, context, quad, shaders.advect_boundary_x, framebuffers.velocity2x, [ 
+            { id: textures.velocity1x, name: "velocity_sampler_x" }
         ]);
+        
+        [ textures.velocity1x, textures.velocity2x ] = [ textures.velocity2x, textures.velocity1x ];
+        [ framebuffers.velocity1x, framebuffers.velocity2x ] = [ framebuffers.velocity2x, framebuffers.velocity1x ];
+        
+        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT + 1);
+        
+        runStep(gl, context, quad, shaders.advect_boundary_y, framebuffers.velocity2y, [ 
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
+        ]);
+        
+        [ textures.velocity1y, textures.velocity2y ] = [ textures.velocity2y, textures.velocity1y ];
+        [ framebuffers.velocity1y, framebuffers.velocity2y ] = [ framebuffers.velocity2y, framebuffers.velocity1y ];
 
-        [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-        [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
 
-        runStep(gl, context, quad, shaders.gradient_sub, framebuffers.velocity2, [ 
+        runStep(gl, context, quad, shaders.gradient_sub_x, framebuffers.velocity2x, [ 
             { id: textures.pressure1, name: "pressure_sampler" },
-            { id: textures.velocity1, name: "velocity_sampler" }
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
         ]);
 
-        [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-        [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        [ textures.velocity1x, textures.velocity2x ] = [ textures.velocity2x, textures.velocity1x ];
+        [ framebuffers.velocity1x, framebuffers.velocity2x ] = [ framebuffers.velocity2x, framebuffers.velocity1x ];
+
+        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT + 1);
+        
+        runStep(gl, context, quad, shaders.gradient_sub_y, framebuffers.velocity2y, [ 
+            { id: textures.pressure1, name: "pressure_sampler" },
+            { id: textures.velocity1x, name: "velocity_sampler_x" },
+            { id: textures.velocity1y, name: "velocity_sampler_y" }
+        ]);
+
+        [ textures.velocity1y, textures.velocity2y ] = [ textures.velocity2y, textures.velocity1y ];
+        [ framebuffers.velocity1y, framebuffers.velocity2y ] = [ framebuffers.velocity2y, framebuffers.velocity1y ];
 
         
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);

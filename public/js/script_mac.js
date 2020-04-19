@@ -452,7 +452,7 @@ highp vec2 applyForce(ivec2 coords_x, ivec2 coords_y) {
 
 void main() {
     ivec2 coords_x = ivec2(floor(rel_coords * vec2(size.x + 1, size.y)));
-    ivec2 coords_y = ivec2(floor(rel_coords.yx * vec2(size.y + 1, size.x)));
+    ivec2 coords_y = ivec2(floor(rel_coords * vec2(size.x + 1, size.x)));
 
     gl_FragColor = vec4(applyForce(coords_x, coords_y), 0.0, 0.0);
 }
@@ -1162,14 +1162,14 @@ function main() {
         [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
         [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
 
-        for (let i = 0; i < 0; ++i) {
-            runStep(gl, context, quad, shaders.diffuse, framebuffers.velocity2, [ 
-                { id: textures.velocity1, name: "velocity_sampler" }
-            ]);
+        // for (let i = 0; i < 30; ++i) {
+        //     runStep(gl, context, quad, shaders.diffuse, framebuffers.velocity2, [ 
+        //         { id: textures.velocity1, name: "velocity_sampler" }
+        //     ]);
 
-            [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-            [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
-        }
+        //     [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
+        //     [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        // }
 
         if (is_button_down) {
             context.click_pos = click_pos;
@@ -1194,44 +1194,44 @@ function main() {
             force_dir.y = 0;
         }
 
-        gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
+        // gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
 
-        runStep(gl, context, quad, shaders.divergence, framebuffers.divergence, [
-            { id: textures.velocity1, name: "velocity_sampler" }
-        ]);
+        // runStep(gl, context, quad, shaders.divergence, framebuffers.divergence, [
+        //     { id: textures.velocity1, name: "velocity_sampler" }
+        // ]);
 
-        runStep(gl, context, quad, shaders.pressure_boundary, framebuffers.pressure2, [ 
-            { id: textures.pressure1, name: "pressure_sampler" }
-        ]);
+        // runStep(gl, context, quad, shaders.pressure_boundary, framebuffers.pressure2, [ 
+        //     { id: textures.pressure1, name: "pressure_sampler" }
+        // ]);
 
-        [ textures.pressure1, textures.pressure2 ] = [ textures.pressure2, textures.pressure1 ];
-        [ framebuffers.pressure1, framebuffers.pressure2 ] = [ framebuffers.pressure2, framebuffers.pressure1 ];
+        // [ textures.pressure1, textures.pressure2 ] = [ textures.pressure2, textures.pressure1 ];
+        // [ framebuffers.pressure1, framebuffers.pressure2 ] = [ framebuffers.pressure2, framebuffers.pressure1 ];
 
-        for (let i = 0; i < 70; ++i) {
-            runStep(gl, context, quad, shaders.pressure_solve, framebuffers.pressure2, [ 
-                { id: textures.pressure1, name: "pressure_sampler" },
-                { id: textures.divergence, name: "divergence_sampler" }
-            ]);
+        // for (let i = 0; i < 70; ++i) {
+        //     runStep(gl, context, quad, shaders.pressure_solve, framebuffers.pressure2, [ 
+        //         { id: textures.pressure1, name: "pressure_sampler" },
+        //         { id: textures.divergence, name: "divergence_sampler" }
+        //     ]);
 
-            [ textures.pressure1, textures.pressure2 ] = [ textures.pressure2, textures.pressure1 ];
-            [ framebuffers.pressure1, framebuffers.pressure2] = [ framebuffers.pressure2, framebuffers.pressure1 ];
-        }
+        //     [ textures.pressure1, textures.pressure2 ] = [ textures.pressure2, textures.pressure1 ];
+        //     [ framebuffers.pressure1, framebuffers.pressure2] = [ framebuffers.pressure2, framebuffers.pressure1 ];
+        // }
 
-        gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
+        // gl.viewport(0, 0, SIM_WIDTH + 1, SIM_HEIGHT);
 
-        runStep(gl, context, quad, shaders.advect_boundary_x, framebuffers.velocity2, [ 
-            { id: textures.velocity1, name: "velocity_sampler" }
-        ]);
+        // runStep(gl, context, quad, shaders.advect_boundary_x, framebuffers.velocity2, [ 
+        //     { id: textures.velocity1, name: "velocity_sampler" }
+        // ]);
 
-        [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-        [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        // [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
+        // [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
 
-        runStep(gl, context, quad, shaders.advect_boundary_y, framebuffers.velocity2, [ 
-            { id: textures.velocity1, name: "velocity_sampler" }
-        ]);
+        // runStep(gl, context, quad, shaders.advect_boundary_y, framebuffers.velocity2, [ 
+        //     { id: textures.velocity1, name: "velocity_sampler" }
+        // ]);
 
-        [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
-        [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
+        // [ textures.velocity1, textures.velocity2 ] = [ textures.velocity2, textures.velocity1 ];
+        // [ framebuffers.velocity1, framebuffers.velocity2 ] = [ framebuffers.velocity2, framebuffers.velocity1 ];
 
         // runStep(gl, context, quad, shaders.gradient_sub, framebuffers.velocity2, [ 
         //     { id: textures.pressure1, name: "pressure_sampler" },
