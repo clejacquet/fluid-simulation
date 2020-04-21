@@ -718,16 +718,10 @@ function main() {
     const refresh = (dt) => {
         info.innerHTML = 
         `
-        ${dt ? `DeltaTime: ${dt}ms<br>` : ''}
-        Force: ${Math.sqrt(rec_force_dir.x * rec_force_dir.x + rec_force_dir.y * rec_force_dir.y)}<br>
         Linear Float Texture extension:  ${loaded_func.exts.texture_float_linear ? 'Yes' : 'No' }<br>
-        Shader Float High Precision: { range_min: ${high_prec.rangeMin}, range_max: ${high_prec.rangeMax}, precision: ${high_prec.precision} }<br>
-        Shader Float Medium Precision: { range_min: ${medium_prec.rangeMin}, range_max: ${medium_prec.rangeMax}, precision: ${medium_prec.precision} }<br>
-        Shader Float Low Precision: { range_min: ${low_prec.rangeMin}, range_max: ${low_prec.rangeMax}, precision: ${low_prec.precision} }<br>
         Version: ${version}<br>
         Renderer Size: ${SCREEN_WIDTH}x${SCREEN_HEIGHT}<br>
-        Supports "Float32 Texture": ${loaded_func.float32Support ? 'Yes' : 'No' }<br>
-        Supports "Float16 Texture": ${loaded_func.float16Support ? 'Yes' : 'No' }
+        Supports "Float32 Texture": ${loaded_func.float32Support ? 'Yes' : 'No' }
         `;
     }
     
