@@ -716,8 +716,8 @@ void main() {
 
 let SCREEN_WIDTH = 512;
 let SCREEN_HEIGHT = 512;
-const COLOR_WIDTH = 1024;
-const COLOR_HEIGHT = 1024;
+const COLOR_WIDTH = 2048;
+const COLOR_HEIGHT = 2048;
 const SIM_WIDTH = 256;
 const SIM_HEIGHT = 256;
 
@@ -1319,7 +1319,7 @@ function main() {
         [ textures.pressure1, textures.pressure2 ] = [ textures.pressure2, textures.pressure1 ];
         [ framebuffers.pressure1, framebuffers.pressure2 ] = [ framebuffers.pressure2, framebuffers.pressure1 ];
 
-        for (let i = 0; i < 200; ++i) {
+        for (let i = 0; i < 70; ++i) {
             runStep(gl, context, quad, shaders.pressure_solve, framebuffers.pressure2, [ 
                 { id: textures.pressure1, name: "pressure_sampler" },
                 { id: textures.divergence, name: "divergence_sampler" }
