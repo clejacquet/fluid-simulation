@@ -98,23 +98,22 @@ uniform highp float timestep;
 
 uniform sampler2D color_sampler;
 
-uniform highp vec2 dx;
+
 uniform highp float viscosity;
 uniform ivec2 click_pos;
+uniform ivec2 size_screen;
 uniform ivec2 size_color;
 uniform highp vec2 force_dir;
 uniform highp vec3 new_color;
 
 
 void main() {
-    ivec2 coords = ivec2(floor(rel_coords * vec2(size_color)));
-    highp float dist = distance(vec2(coords), vec2(click_pos));
-    highp float force_factor = (0.2 * length(force_dir));
-    highp float factor = force_factor * force_factor * exp(-  (dist * dist) / 10000.0);
+    highp float dist = distance(rel_coords * vec2(size_screen), vec2(click_pos.x, click_pos.y)) * 0.01;
+    highp float factor = clamp(0.1 * length(force_dir), 0.0, 1.0) * exp(-  pow(dist, 4.0));
     factor = clamp(factor, 0.0, 1.0);
-
     highp vec3 old_color = texture2D(color_sampler, rel_coords).rgb;
     gl_FragColor = vec4((1.0 - factor) * old_color + factor * new_color, 0.0);
+
     // gl_FragColor = vec4(new_color, 0.0);
 }
 `
@@ -128,25 +127,25 @@ uniform sampler2D velocity_sampler;
 
 uniform highp float timestep;
 
-uniform highp float dx;
-uniform highp float dy;
+uniform highp float dx_color;
+uniform highp float dy_color;
 
 uniform ivec2 size;
 uniform ivec2 size_color;
 
+highp vec2 correctedRelCoords(highp vec2 rel) {
+    return (1.5 / vec2(size)) + ((vec2(size) - vec2(3)) / vec2(size)) * rel;
+}
 
-highp vec3 advect(ivec2 coords) {
-    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy;
-    // highp vec2 velocity_value = vec2(0, -60);
 
-    velocity_value /= 1000.0;
+highp vec3 advect(highp vec2 coords) {
+    highp vec2 velocity_value = texture2D(velocity_sampler, correctedRelCoords(rel_coords)).xy / vec2(dx_color, dy_color);
 
-    highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
-    highp vec2 mid_velocity_value = texture2D(velocity_sampler, rel_mid_coords).xy;
+    highp vec2 mid_coords = coords - 0.5 * timestep * velocity_value;
+    highp vec2 mid_velocity_value = texture2D(velocity_sampler, correctedRelCoords(mid_coords / vec2(size_color))).xy / vec2(dx_color, dy_color);
 
-    mid_velocity_value /= 1000.0;
-
-    highp vec2 rel_prev_coords = rel_coords - timestep * vec2(dx, dy) * mid_velocity_value;
+    highp vec2 prev_coords = coords - timestep * mid_velocity_value;
+    highp vec2 rel_prev_coords = prev_coords / vec2(size_color);
 
     clamp(rel_prev_coords, vec2(0.0), vec2(1.0));
 
@@ -154,7 +153,7 @@ highp vec3 advect(ivec2 coords) {
 }
 
 void main() {
-    ivec2 coords = ivec2(floor(rel_coords * vec2(size_color)));
+    highp vec2 coords = rel_coords * vec2(size_color);
 
     gl_FragColor = vec4(advect(coords), 0.0);
 }
@@ -168,23 +167,20 @@ uniform sampler2D velocity_sampler;
 
 uniform highp float timestep;
 
-uniform highp float dx;
-uniform highp float dy;
+uniform highp float dx_sim;
+uniform highp float dy_sim;
 
 uniform ivec2 size;
 
 
-highp vec2 advect(ivec2 coords) {
-    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy;
+highp vec2 advect(highp vec2 coords) {
+    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy / vec2(dx_sim, dy_sim);
 
-    velocity_value /= 1000.0;
+    highp vec2 mid_coords = coords - 0.5 * timestep * velocity_value;
+    highp vec2 mid_velocity_value = texture2D(velocity_sampler, mid_coords / vec2(size)).xy / vec2(dx_sim, dy_sim);
 
-    highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
-    highp vec2 mid_velocity_value = texture2D(velocity_sampler, rel_mid_coords).xy;
-
-    mid_velocity_value /= 1000.0;
-
-    highp vec2 rel_prev_coords = rel_coords - timestep * vec2(dx, dy) * mid_velocity_value;
+    highp vec2 prev_coords = coords - timestep * mid_velocity_value;
+    highp vec2 rel_prev_coords = prev_coords / vec2(size);
 
     clamp(rel_prev_coords, vec2(0.0), vec2(1.0));
 
@@ -192,7 +188,7 @@ highp vec2 advect(ivec2 coords) {
 }
 
 void main() {
-    ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
+    highp vec2 coords = rel_coords * vec2(size);
 
     gl_FragColor = vec4(advect(coords), 0.0, 0.0);
 }
@@ -206,23 +202,20 @@ uniform sampler2D velocity_sampler;
 
 uniform highp float timestep;
 
-uniform highp float dx;
-uniform highp float dy;
+uniform highp float dx_sim;
+uniform highp float dy_sim;
 
 uniform ivec2 size;
 
 
-highp float advect(ivec2 coords) {
-    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy;
+highp float advect(highp vec2 coords) {
+    highp vec2 velocity_value = texture2D(velocity_sampler, rel_coords).xy / vec2(dx_sim, dy_sim);
 
-    velocity_value /= 1000.0;
+    highp vec2 mid_coords = coords - 0.5 * timestep * velocity_value;
+    highp vec2 mid_velocity_value = texture2D(velocity_sampler, mid_coords / vec2(size)).xy / vec2(dx_sim, dy_sim);
 
-    highp vec2 rel_mid_coords = rel_coords - 0.5 * timestep * vec2(dx, dy) * velocity_value;
-    highp vec2 mid_velocity_value = texture2D(velocity_sampler, rel_mid_coords).xy;
-
-    mid_velocity_value /= 1000.0;
-
-    highp vec2 rel_prev_coords = rel_coords - timestep * vec2(dx, dy) * mid_velocity_value;
+    highp vec2 prev_coords = coords - timestep * mid_velocity_value;
+    highp vec2 rel_prev_coords = prev_coords / vec2(size);
 
     clamp(rel_prev_coords, vec2(0.0), vec2(1.0));
 
@@ -230,7 +223,7 @@ highp float advect(ivec2 coords) {
 }
 
 void main() {
-    ivec2 coords = ivec2(floor(rel_coords * vec2(size)));
+    highp vec2 coords = rel_coords * vec2(size);
 
     gl_FragColor = vec4(advect(coords), 0.0, 0.0, 0.0);
 }
@@ -243,14 +236,15 @@ varying highp vec2 rel_coords;
 uniform sampler2D velocity_sampler;
 
 uniform highp float timestep;
-uniform highp float dx;
+uniform highp float dx_sim;
+uniform highp float dy_sim;
 uniform highp float viscosity;
 uniform ivec2 size;
 
 
 highp vec2 velocity_diffuse(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
-    highp float alpha = dx * dx / (viscosity * timestep);
+    highp vec2 d = (vec2(1.0) / (vec2(size) - vec2(1))) / vec2(dx_sim / dy_sim, 1.0);
+    highp float alpha = dx_sim * dx_sim / (viscosity * timestep);
     highp float r_beta = 1.0 / (4.0 + alpha);
 
     highp vec2 diffused_velocity;
@@ -285,18 +279,17 @@ varying highp vec2 rel_coords;
 uniform sampler2D velocity_sampler;
 
 uniform highp float timestep;
-uniform highp float dx;
 uniform ivec2 size;
+uniform ivec2 size_screen;
 uniform ivec2 click_pos;
 uniform highp vec2 force_dir;
 
 
 highp vec2 applyForce(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
-
     if (coords.x > 0 && coords.x < size.x - 1 && coords.y > 0 && coords.y < size.x - 1) {
-        highp float dist = distance(vec2(coords), vec2(click_pos));
-        highp vec2 v_xy = 100.0 * timestep * force_dir * length(force_dir) * exp(- (dist * dist) / 50.0);
+        highp float dist = distance(vec2(rel_coords * vec2(size_screen)), vec2(click_pos));
+        highp vec2 v_xy = 15.0 * force_dir * exp(- (dist * dist) / 4096.0);
+        
         // highp vec2 v_xy = 20.0 * vec2(0.0, -1.0) * exp(- distance(vec2(coords), vec2(click_pos)) * distance(vec2(coords), vec2(click_pos)) / 5.0);
         // highp vec2 dir = vec2(click_pos) - vec2(coords);
         // highp vec2 v_xy = length(dir) < 10.0 ? normalize(dir) * 40.0 : vec2(0.0);
@@ -321,14 +314,15 @@ varying highp vec2 rel_coords;
 uniform sampler2D velocity_sampler;
 
 uniform highp float timestep;
-uniform highp float dx;
+uniform highp float dx_sim;
+uniform highp float dy_sim;
 uniform highp float viscosity;
 uniform ivec2 size;
 
 
 highp float divergence_calc(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1));
-    highp float halfrdx = 0.5 / dx;
+    highp vec2 d = (vec2(1.0) / (vec2(size) - vec2(1))) / vec2(dx_sim / dy_sim, 1.0);
+    highp float halfrdx = 0.5 / dx_sim;
 
     if (rel_coords.x > 0.0 && rel_coords.x < 1.0 && rel_coords.y > 0.0 && rel_coords.y < 1.0) {
         highp vec2 xL = texture2D(velocity_sampler, rel_coords - vec2(d.x, 0)).xy;
@@ -355,7 +349,6 @@ varying highp vec2 rel_coords;
 uniform sampler2D pressure_sampler;
 
 uniform highp float timestep;
-uniform highp float dx;
 uniform ivec2 size;
 
 
@@ -405,14 +398,15 @@ uniform sampler2D pressure_sampler;
 uniform sampler2D divergence_sampler;
 
 uniform highp float timestep;
-uniform highp float dx;
+uniform highp float dx_sim;
+uniform highp float dy_sim;
 uniform ivec2 size;
 
 
 highp float pressure_solve(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1.0));
+    highp vec2 d = (vec2(1.0) / (vec2(size) - vec2(1))) / vec2(dx_sim / dy_sim, 1.0);
 
-    highp float alpha = -dx * dx;
+    highp float alpha = -dx_sim * dx_sim;
     highp float r_beta = 1.0 / 4.0;
 
     highp float pressure_val;
@@ -447,15 +441,16 @@ uniform sampler2D velocity_sampler;
 uniform sampler2D pressure_sampler;
 
 uniform highp float timestep;
-uniform highp float dx;
+uniform highp float dx_sim;
+uniform highp float dy_sim;
 uniform highp float viscosity;
 uniform ivec2 size;
 
 
 highp vec2 gradient_sub(ivec2 coords) {
-    highp vec2 d = vec2(1.0) / (vec2(size) - vec2(1));
+    highp vec2 d = (vec2(1.0) / (vec2(size) - vec2(1))) / vec2(dx_sim / dy_sim, 1.0);
     
-    highp float halfrdx = 0.5 / dx;
+    highp float halfrdx = 0.5 / dx_sim;
 
     if (rel_coords.x > 0.0 && rel_coords.x < 1.0 && rel_coords.y > 0.0 && rel_coords.y < 1.0) {
         highp float pL = texture2D(pressure_sampler, rel_coords - vec2(d.x, 0)).x;
@@ -482,8 +477,8 @@ let SCREEN_WIDTH = 1024;
 let SCREEN_HEIGHT = 1024;
 const COLOR_WIDTH = 2048;
 const COLOR_HEIGHT = 2048;
-const SIM_WIDTH = 128;
-const SIM_HEIGHT = 128;
+const SIM_WIDTH = 256;
+const SIM_HEIGHT = 256;
 
 let color_vec = [ 0.3, 0.5, 0.0 ];
 let total_dt = 0.0;
@@ -512,6 +507,19 @@ function HSVtoRGB(h, s, v) {
         g: g,
         b: b
     };
+}
+
+function simulationReset(gl, framebuffers) {
+    
+    Object.keys(framebuffers).forEach((key) => {
+        // console.log(key);
+        gl.viewport(framebuffers[key].viewport[0], framebuffers[key].viewport[1], framebuffers[key].viewport[2], framebuffers[key].viewport[3]);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[key].fb);
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+    });
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
 function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
@@ -592,14 +600,15 @@ function generateVelocityData(width, height) {
 let counter = 0;
 class Framebuffer {
 
-    constructor(fb) {
+    constructor(fb, viewport) {
         this.id = counter++;
         this.fb = fb;
+        this.viewport = viewport;
     }
 
 }
 
-function loadFramebuffer(gl, texture) {
+function loadFramebuffer(gl, texture, viewport) {
     // Create and bind the framebuffer
     const fb = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
@@ -608,17 +617,11 @@ function loadFramebuffer(gl, texture) {
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    return new Framebuffer(fb);
+    return new Framebuffer(fb, viewport);
 }
 
 function runStep(gl, context, quad, shader, framebuffer, textures) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer.fb);
-
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
-  
-    // Clear the canvas before we start drawing on it.
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  
     
     // Set the shader uniforms
     quad.bind(gl);
@@ -634,6 +637,7 @@ function runStep(gl, context, quad, shader, framebuffer, textures) {
     gl.uniform1f(gl.getUniformLocation(shader, "viscosity"), context.viscosity);
     gl.uniform2i(gl.getUniformLocation(shader, "size"), SIM_WIDTH, SIM_HEIGHT);
     gl.uniform2i(gl.getUniformLocation(shader, "size_color"), COLOR_WIDTH, COLOR_HEIGHT);
+    gl.uniform2i(gl.getUniformLocation(shader, "size_screen"), SCREEN_WIDTH, SCREEN_HEIGHT);
     
     let dx;
     if (context.new_color) {
@@ -642,25 +646,27 @@ function runStep(gl, context, quad, shader, framebuffer, textures) {
         
         if (context.click_pos) {
             // console.log((SCREEN_WIDTH - 1) * context.click_pos[0], (SCREEN_HEIGHT - 1) * context.click_pos[1]);
-            gl.uniform2i(gl.getUniformLocation(shader, "click_pos"), (COLOR_WIDTH - 1) * context.click_pos[0], (COLOR_HEIGHT - 1) * context.click_pos[1]);
+            gl.uniform2i(gl.getUniformLocation(shader, "click_pos"), context.click_pos[0], context.click_pos[1]);
         }
     } else {
         dx = 1.0 / SIM_WIDTH;
 
         if (context.click_pos) {
             // console.log((SIM_WIDTH - 1) * context.click_pos[0], (SIM_HEIGHT - 1) * context.click_pos[1]);
-            gl.uniform2i(gl.getUniformLocation(shader, "click_pos"), (SIM_WIDTH - 1) * context.click_pos[0], (SIM_HEIGHT - 1) * context.click_pos[1]);
+            gl.uniform2i(gl.getUniformLocation(shader, "click_pos"), context.click_pos[0], context.click_pos[1]);
         }
     }
 
     dx = 10.0;
     // dx = 1 /dx;
     
-    gl.uniform1f(gl.getUniformLocation(shader, "dx"), dx);
-    gl.uniform1f(gl.getUniformLocation(shader, "dy"), dx * SCREEN_WIDTH / SCREEN_HEIGHT);
+    gl.uniform1f(gl.getUniformLocation(shader, "dx_sim"), SCREEN_WIDTH / SIM_WIDTH);
+    gl.uniform1f(gl.getUniformLocation(shader, "dy_sim"), SCREEN_HEIGHT / SIM_HEIGHT);
+    gl.uniform1f(gl.getUniformLocation(shader, "dx_color"), SCREEN_WIDTH / COLOR_WIDTH);
+    gl.uniform1f(gl.getUniformLocation(shader, "dy_color"), SCREEN_HEIGHT / COLOR_HEIGHT);
 
     if (context.force_dir) {
-        gl.uniform2f(gl.getUniformLocation(shader, "force_dir"), (SIM_WIDTH - 1) * context.force_dir.x, (SIM_HEIGHT - 1) * context.force_dir.y);
+        gl.uniform2f(gl.getUniformLocation(shader, "force_dir"), context.force_dir.x, context.force_dir.y);
     }
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -771,13 +777,13 @@ function main() {
     const pressure2 = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
     const divergence = loadTexture(gl, SIM_WIDTH, SIM_HEIGHT, inner_formats.rf, formats.r, types.float);
 
-    const color1_fb = loadFramebuffer(gl, color1);
-    const color2_fb = loadFramebuffer(gl, color2);
-    const velocity1_fb = loadFramebuffer(gl, velocity1);
-    const velocity2_fb = loadFramebuffer(gl, velocity2);
-    const pressure1_fb = loadFramebuffer(gl, pressure1);
-    const pressure2_fb = loadFramebuffer(gl, pressure2);
-    const divergence_fb = loadFramebuffer(gl, divergence);
+    const color1_fb = loadFramebuffer(gl, color1, [0, 0, COLOR_WIDTH, COLOR_HEIGHT]);
+    const color2_fb = loadFramebuffer(gl, color2, [0, 0, COLOR_WIDTH, COLOR_HEIGHT]);
+    const velocity1_fb = loadFramebuffer(gl, velocity1, [0, 0, SIM_WIDTH, SIM_HEIGHT]);
+    const velocity2_fb = loadFramebuffer(gl, velocity2, [0, 0, SIM_WIDTH, SIM_HEIGHT]);
+    const pressure1_fb = loadFramebuffer(gl, pressure1, [0, 0, SIM_WIDTH, SIM_HEIGHT]);
+    const pressure2_fb = loadFramebuffer(gl, pressure2, [0, 0, SIM_WIDTH, SIM_HEIGHT]);
+    const divergence_fb = loadFramebuffer(gl, divergence, [0, 0, SIM_WIDTH, SIM_HEIGHT]);
 
     let then = 0.0;
 
@@ -819,7 +825,7 @@ function main() {
 
     const context = {
         timestep: 0.033,
-        viscosity: 0.1
+        viscosity: 0.01
     };
     
     let reset = false;
@@ -836,7 +842,7 @@ function main() {
         const x = e.clientX - canvas.getBoundingClientRect().left;
         const y = SCREEN_HEIGHT - (e.clientY - canvas.getBoundingClientRect().top) - 1;
         
-        old_click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
+        old_click_pos = [x, y];
 
         splat_color = HSVtoRGB(Math.random(), 1, 1);
         splat_color = [splat_color.r, splat_color.g, splat_color.b];
@@ -848,7 +854,7 @@ function main() {
         const x = e.changedTouches[0].clientX - canvas.getBoundingClientRect().left;
         const y = SCREEN_HEIGHT - (e.changedTouches[0].clientY - canvas.getBoundingClientRect().top) - 1;
         
-        old_click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
+        old_click_pos = [x, y];
 
         splat_color = HSVtoRGB(Math.random(), 1, 1);
         splat_color = [splat_color.r, splat_color.g, splat_color.b];
@@ -869,13 +875,14 @@ function main() {
         const x = e.clientX - canvas.getBoundingClientRect().left;
         const y = SCREEN_HEIGHT - (e.clientY - canvas.getBoundingClientRect().top) - 1;
         
-        click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
+        click_pos = [x, y];
+
         
         if (old_click_pos) {
             force_dir.x += click_pos[0] - old_click_pos[0];
             force_dir.y += click_pos[1] - old_click_pos[1];
         }
-        // console.log([force_dir.x, force_dir.y, click_pos.x, click_pos.y ]);
+        console.log([force_dir.x, force_dir.y, click_pos[0], click_pos[1] ]);
 
         old_click_pos = click_pos;
     };
@@ -889,7 +896,7 @@ function main() {
         const x = e.changedTouches[0].clientX - canvas.getBoundingClientRect().left;
         const y = SCREEN_HEIGHT - (e.changedTouches[0].clientY - canvas.getBoundingClientRect().top) - 1;
         
-        click_pos = [x / (SCREEN_WIDTH - 1), y / (SCREEN_HEIGHT - 1)];
+        click_pos = [x, y];
         
         if (old_click_pos) {
             force_dir.x += click_pos[0] - old_click_pos[0];
@@ -913,6 +920,8 @@ function main() {
         SCREEN_HEIGHT = window.innerHeight;
         canvas.width = SCREEN_WIDTH;
         canvas.height = SCREEN_HEIGHT;
+
+        simulationReset(gl, framebuffers);
     }, false);
 
     canvas.addEventListener("mousemove", mouse_move_func, false);
@@ -921,7 +930,11 @@ function main() {
     runStep(gl, context, quad, shaders.first_color, framebuffers.color1, []);
 
     const step_func = (deltaTime) => {
-        context.timestep = deltaTime / 1000.0;
+        if (deltaTime > 20.0) {
+            context.timestep = 0.020;
+        } else {
+            context.timestep = deltaTime / 1000.0;
+        }
 
         gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
         
