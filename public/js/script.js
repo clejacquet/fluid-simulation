@@ -83,10 +83,12 @@ void main() {
 const fsFirstColor =
 `
 varying highp vec2 rel_coords;
+uniform highp vec3 background_color;
+
 
 void main() {
     // gl_FragColor = vec4(0.7071 - length(rel_coords - vec2(0.5, 0.5)), 0.0, 0.0, 0.0);
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    gl_FragColor = vec4(background_color, 0.0);
 }
 `;
 
@@ -130,6 +132,8 @@ uniform highp float timestep;
 uniform highp float dx_color;
 uniform highp float dy_color;
 
+uniform highp vec3 background_color;
+
 uniform ivec2 size;
 uniform ivec2 size_color;
 
@@ -149,7 +153,7 @@ highp vec3 advect(highp vec2 coords) {
 
     clamp(rel_prev_coords, vec2(0.0), vec2(1.0));
 
-    return 0.995 * texture2D(color_sampler, rel_prev_coords).rgb;
+    return 0.995 * texture2D(color_sampler, rel_prev_coords).rgb + 0.005 * background_color;
 }
 
 void main() {
@@ -480,9 +484,6 @@ const COLOR_HEIGHT = 2048;
 const SIM_WIDTH = 256;
 const SIM_HEIGHT = 256;
 
-let color_vec = [ 0.3, 0.5, 0.0 ];
-let total_dt = 0.0;
-
 function HSVtoRGB(h, s, v) {
     var r, g, b, i, f, p, q, t;
     if (arguments.length === 1) {
@@ -522,9 +523,7 @@ function simulationReset(gl, framebuffers) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
-function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
-    total_dt += deltaTime * 0.0001;
-
+function drawScene(gl, quad, shaders, textures, framebuffers) {
     gl.viewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
   
@@ -535,13 +534,6 @@ function drawScene(gl, quad, shaders, textures, framebuffers, deltaTime) {
     // Set the shader uniforms
     quad.bind(gl);
     gl.useProgram(shaders.render);
-
-    color_vec[0] = (color_vec[0] + deltaTime / 5000) % 1.0;
-    color_vec[1] = (color_vec[1] + deltaTime / 5000) % 1.0;
-    color_vec[2] = (color_vec[2] + deltaTime / 5000) % 1.0;
-
-    gl.uniform3f(gl.getUniformLocation(shaders.render, "color"), color_vec[0], color_vec[1], color_vec[2]);
-    gl.uniform1f(gl.getUniformLocation(shaders.render, "dt"), total_dt);
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, textures.color1);
@@ -638,6 +630,8 @@ function runStep(gl, context, quad, shader, framebuffer, textures) {
     gl.uniform2i(gl.getUniformLocation(shader, "size"), SIM_WIDTH, SIM_HEIGHT);
     gl.uniform2i(gl.getUniformLocation(shader, "size_color"), COLOR_WIDTH, COLOR_HEIGHT);
     gl.uniform2i(gl.getUniformLocation(shader, "size_screen"), SCREEN_WIDTH, SCREEN_HEIGHT);
+
+    gl.uniform3f(gl.getUniformLocation(shader, "background_color"), context.background_color[0], context.background_color[1], context.background_color[2]);
     
     let dx;
     if (context.new_color) {
@@ -683,8 +677,8 @@ function main() {
     const info = document.querySelector("#info-section > span");
     const canvas = document.querySelector("#glCanvas");
 
-    SCREEN_WIDTH = body.getBoundingClientRect().width;
-    SCREEN_HEIGHT = body.getBoundingClientRect().height;
+    SCREEN_WIDTH = Math.ceil(body.getBoundingClientRect().width);
+    SCREEN_HEIGHT = Math.ceil(body.getBoundingClientRect().height);
 
     console.log([ SCREEN_WIDTH, SCREEN_HEIGHT ]);
 
@@ -700,6 +694,9 @@ function main() {
         x: 0,
         y: 0
     };
+
+    let background_color = [0, 0, 0];
+    let speed = 1.0;
     
     // canvas.addEventListener("touch", (e) => {
     //     const x = e.clientX - canvas.getBoundingClientRect().left;
@@ -729,7 +726,18 @@ function main() {
         Renderer Size: ${SCREEN_WIDTH}x${SCREEN_HEIGHT}<br>
         Supports "Float32 Texture": ${loaded_func.float32Support ? 'Yes' : 'No' }
         `;
-    }
+    };
+
+    const source = document.querySelector('#color-picker');
+    let picker = new CP(source);
+    picker.on('change', function(r, g, b, a) {
+        this.source.style.backgroundColor = 'rgb(' + r + ', ' + g + ', ' + b + ')';
+        background_color = [r / 255, g / 255, b / 255];
+    });
+
+    document.querySelector('#speed-range').addEventListener('input', function (e) {
+        speed = this.value / 100.0;
+    }, true);
     
     // Continuer seulement si WebGL est disponible et fonctionnel
     if (!gl) {
@@ -825,7 +833,8 @@ function main() {
 
     const context = {
         timestep: 0.033,
-        viscosity: 0.01
+        viscosity: 0.01,
+        background_color: [0, 0, 0]
     };
     
     let reset = false;
@@ -882,7 +891,6 @@ function main() {
             force_dir.x += click_pos[0] - old_click_pos[0];
             force_dir.y += click_pos[1] - old_click_pos[1];
         }
-        console.log([force_dir.x, force_dir.y, click_pos[0], click_pos[1] ]);
 
         old_click_pos = click_pos;
     };
@@ -916,8 +924,8 @@ function main() {
     window.addEventListener("touchend", up_func, false);
     window.addEventListener("resize", (e) => {
         // console.log('resize');
-        SCREEN_WIDTH = window.innerWidth;
-        SCREEN_HEIGHT = window.innerHeight;
+        SCREEN_WIDTH = Math.ceil(window.innerWidth);
+        SCREEN_HEIGHT = Math.ceil(window.innerHeight);
         canvas.width = SCREEN_WIDTH;
         canvas.height = SCREEN_HEIGHT;
 
@@ -930,10 +938,16 @@ function main() {
     runStep(gl, context, quad, shaders.first_color, framebuffers.color1, []);
 
     const step_func = (deltaTime) => {
+        context.background_color = background_color;
+
         if (deltaTime > 20.0) {
-            context.timestep = 0.020;
+            context.timestep = speed * 0.020;
         } else {
-            context.timestep = deltaTime / 1000.0;
+            context.timestep = speed * deltaTime / 1000.0;
+        }
+
+        if (context.timestep < 0.00001) {
+            return;
         }
 
         gl.viewport(0, 0, SIM_WIDTH, SIM_HEIGHT);
@@ -1073,7 +1087,7 @@ function main() {
         
         step_func(deltaTime);
 
-        drawScene(gl, quad, shaders, textures, framebuffers, deltaTime);
+        drawScene(gl, quad, shaders, textures, framebuffers);
         
         requestAnimationFrame(render);
     }

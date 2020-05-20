@@ -6,6 +6,7 @@ body {
     left: 0;
     right: 0;
     margin: auto;
+    font-size: 2em;
 }
 
 #glCanvas {
@@ -21,16 +22,48 @@ body {
     position: fixed;
     bottom: 0;
     left: 0;
-    right: 0;
     text-align: left;
     pointer-events: none;
+    font-size: 14pt;
+    margin: 0 0 16px 16px;
 }
 
-#info-section > span {
+@media (max-width: 1280px) {
+#info-section, #control-section {
+    font-size: 14pt;
+}
+}
+
+@media (min-width: 1280px) {
+#info-section, #control-section {
+    font-size: 12pt;
+}
+}
+
+#control-section {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    text-align: right;
+    pointer-events: none;
+    margin: 0 16px 16px 0;
+}
+
+#info-section > span, #info-section label, #control-section label {
     background-color: #FFFFFF44;
     color: #FFFFFF;
     user-select: none;
     pointer-events: none;
+}
+
+#color-picker {
+    width: 200px;
+    height: 60px;
+    pointer-events: auto;
+}
+
+#speed-range {
+    pointer-events: auto;
 }
 
 
@@ -41,7 +74,44 @@ html[data-modal-active="true"] {
     -webkit-overflow-scrolling: auto;
     overflow: hidden;
 }
-  
+
+.slider {
+    -webkit-appearance: none;
+    width: 200px;
+    height: 60px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .2s;
+    transition: opacity .2s;
+}
+
+.slider:hover {
+    opacity: 1;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 60px;
+    height: 60px;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 60px;
+    height: 60px;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+#control-section > p { 
+    display: flex;
+    justify-content: flex-end; 
+    align-items: center; 
+}
+
 [data-modal-active="true"] body {
     touch-action: none;
     -ms-scroll-chaining: none;
